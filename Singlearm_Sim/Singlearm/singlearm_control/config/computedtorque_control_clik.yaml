@@ -31,7 +31,7 @@ singlearm:
 
 
     root_link: world
-    tip_link1: link_R_hand
+    tip_link1: link_06
 
 
     ctr_obj: 2
