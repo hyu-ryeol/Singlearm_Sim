@@ -88,18 +88,18 @@ namespace  singlearm_controller
             for (size_t i = 0; i < n_joints_; i++)
             {
                 std::string si = std::to_string(i + 1);
-                if (n.getParam("/singlearm/computedtorque_control_clik/gains/singlearm_joint" + si + "/pid/p", Kp[i]))
+                if (n.getParam("/singlearm/computedtorque_control_clik/gains/joint" + si + "/pid/p", Kp[i]))
                 {
                     Kp_(i) = Kp[i];
                 }
                 else
                 {
-                    std::cout << "/singlearm/computedtorque_control_clik/gains/singlearm_joint" + si + "/pid/p" << std::endl;
+                    std::cout << "/singlearm/computedtorque_control_clik/gains/joint" + si + "/pid/p" << std::endl;
                     ROS_ERROR("Cannot find pid/p gain");
                     return false;
                 }
 
-                if (n.getParam("/singlearm/computedtorque_control_clik/gains/singlearm_joint" + si + "/pid/i", Ki[i]))
+                if (n.getParam("/singlearm/computedtorque_control_clik/gains/joint" + si + "/pid/i", Ki[i]))
                 {
                     Ki_(i) = Ki[i];
                 }
@@ -109,7 +109,7 @@ namespace  singlearm_controller
                     return false;
                 }
 
-                if (n.getParam("/singlearm/computedtorque_control_clik/gains/singlearm_joint" + si + "/pid/d", Kd[i]))
+                if (n.getParam("/singlearm/computedtorque_control_clik/gains/joint" + si + "/pid/d", Kd[i]))
                 {
                     Kd_(i) = Kd[i];
                 }
@@ -186,7 +186,7 @@ namespace  singlearm_controller
             }
 
             // 4.2 kdl chain
-            std::string root_name, tip_name1, tip_name2;
+            std::string root_name, tip_name1;
             if (!n.getParam("root_link", root_name))
             {
                 ROS_ERROR("Could not find root link name");
@@ -197,11 +197,7 @@ namespace  singlearm_controller
                 ROS_ERROR("Could not find tip link name");
                 return false;
             }
-            if (!n.getParam("tip_link2", tip_name2))
-            {
-                ROS_ERROR("Could not find tip link name");
-                return false;
-            }
+
 
 
             if (!kdl_tree_.getChain(root_name, tip_name1, kdl_chain_))
@@ -220,22 +216,7 @@ namespace  singlearm_controller
 
                 return false;
             }
-            else if(!kdl_tree_.getChain(root_name, tip_name2, kdl_chain2_))
-            {
-                ROS_ERROR_STREAM("Failed to get KDL chain from tree: ");
-                ROS_ERROR_STREAM("  " << root_name << " --> " << tip_name2);
-                ROS_ERROR_STREAM("  Tree has " << kdl_tree_.getNrOfJoints() << " joints");
-                ROS_ERROR_STREAM("  Tree has " << kdl_tree_.getNrOfSegments() << " segments");
-                ROS_ERROR_STREAM("  The segments are:");
 
-                KDL::SegmentMap segment_map = kdl_tree_.getSegments();
-                KDL::SegmentMap::iterator it;
-
-                for (it = segment_map.begin(); it != segment_map.end(); it++)
-                    ROS_ERROR_STREAM("    " << (*it).first);
-
-                return false;
-            }
             else
             {
                 ROS_INFO("Got kdl chain");
@@ -354,6 +335,7 @@ namespace  singlearm_controller
                 qd_.data(4) = -70.0*D2R;
                 qd_.data(5) = 70.0*D2R;
                 qd_.data(6) = 0.0*D2R;
+                qd_.data(7) = 0.0*D2R;
 
                 qd_old_ = qd_;
 
