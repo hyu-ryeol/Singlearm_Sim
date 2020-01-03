@@ -1,0 +1,209 @@
+<?xml version="1.0"?>
+<robot name = "singlearm" xmlns:xacro="http://www.ros.org/wiki/xacro" >
+
+	<xacro:include filename="$(find singlearm_description)/urdf/link_to_joint.xacro" />
+
+	<xacro:include filename="$(find singlearm_description)/urdf/robot_parameter.xacro" />
+
+	<xacro:include filename="$(find singlearm_description)/urdf/singlearm.gazebo" />
+
+	<!-- Base parts -->
+	<link name = "world"/>
+	<joint name="base_joint" type="fixed">
+		<origin
+				xyz="0 0 0"
+				rpy="0 0 0"/>
+		<parent
+				link="world"/>
+		<child
+			link="${base_link_name}"/>
+	</joint>
+
+	<m_link_cylinder
+			name="${base_link_name}"
+			mass="${base_link_mass}"
+			origin_rpy="0 0 0"
+			origin_xyz="0 0 0"
+			ixx="${base_link_ixx}"
+			ixy="${base_link_ixy}"
+			ixz="${base_link_ixz}"
+			iyy="${base_link_iyy}"
+			iyz="${base_link_iyz}"
+			izz="${base_link_izz}"
+
+			mesh_file="package://singlearm_description/meshes/base_link.STL"
+			mesh_scale="0.001 0.001 0.001"
+	/>
+	<!-- arm part -->
+	<m_joint_100
+			name="joint1"
+			type="revolute"
+			axis_xyz="0 0 -1"
+			origin_rpy="0 0 0"
+			origin_xyz="0.184 0 1.437"
+			parent="${base_link_name}"
+			child="${L1_name}"
+			limit_effort="300"
+			limit_lower="0"
+			limit_upper="${M_PI/1.5}"
+			limit_v="1"
+	/>
+
+	<m_link_cylinder
+			name="${L1_name}"
+			mass="${L1_mass}"
+			origin_rpy="0 0 0"
+			origin_xyz="0 0 0"
+			ixx="${L1_ixx}"
+			ixy="${L1_ixy}"
+			ixz="${L1_ixz}"
+			iyy="${L1_iyy}"
+			iyz="${L1_iyz}"
+			izz="${L1_izz}"
+
+			mesh_file="package://singlearm_description/meshes/L1.STL"
+			mesh_scale="0.001 0.001 0.001"
+	/>
+	<m_joint_100
+			name="joint2"
+			type="revolute"
+			axis_xyz="-1 0 0"
+			origin_rpy="0 0 0"
+			origin_xyz="0.122 0 0.0643"
+			parent="${L1_name}"
+			child="${L2_name}"
+			limit_effort="300"
+			limit_lower="-${M_PI/2}"
+			limit_upper="${M_PI/3}"
+			limit_v="1"
+	/>
+	<m_link_cylinder
+			name="${L2_name}"
+			mass="${L2_mass}"
+			origin_rpy="0 0 0"
+			origin_xyz="0 0 0"
+			ixx="${L2_ixx}"
+			ixy="${L2_ixy}"
+			ixz="${L2_ixz}"
+			iyy="${L2_iyy}"
+			iyz="${L2_iyz}"
+			izz="${L2_izz}"
+
+			mesh_file="package://singlearm_description/meshes/L2.STL"
+			mesh_scale="0.001 0.001 0.001"
+	/>
+
+	<m_joint_100
+			name="joint3"
+			type="revolute"
+			axis_xyz="0 -1 0"
+			origin_rpy="0 0 0"
+			origin_xyz="0.078 0 0"
+			parent="${L2_name}"
+			child="${L3_name}"
+			limit_effort="300"
+			limit_lower="-${M_PI/9}"
+			limit_upper="${M_PI/2}"
+			limit_v="1"
+	/>
+	<m_link_cylinder
+			name="${L3_name}"
+			mass="${L3_mass}"
+			origin_rpy="0 0 0"
+			origin_xyz="0 0 0"
+			ixx="${L3_ixx}"
+			ixy="${L3_ixy}"
+			ixz="${L3_ixz}"
+			iyy="${L3_iyy}"
+			iyz="${L3_iyz}"
+			izz="${L3_izz}"
+
+			mesh_file="package://singlearm_description/meshes/L3.STL"
+			mesh_scale="0.001 0.001 0.001"
+	/>
+	<m_joint_100
+			name="joint4"
+			type="revolute"
+			axis_xyz="0 0 1"
+			origin_rpy="0 0 0"
+			origin_xyz="0 0 -0.252"
+			parent="${L3_name}"
+			child="${L4_name}"
+			limit_effort="300"
+			limit_lower="0"
+			limit_upper="${M_PI}"
+			limit_v="1"
+	/>
+	<m_link_cylinder
+			name="${L4_name}"
+			mass="${L4_mass}"
+			origin_rpy="0 0 0"
+			origin_xyz="0 0 0"
+			ixx="${L4_ixx}"
+			ixy="${L4_ixy}"
+			ixz="${L4_ixz}"
+			iyy="${L4_iyy}"
+			iyz="${L4_iyz}"
+			izz="${L4_izz}"
+
+			mesh_file="package://singlearm_description/meshes/L4.STL"
+			mesh_scale="0.001 0.001 0.001"
+	/>
+	<m_joint_100
+			name="joint5"
+			type="revolute"
+			axis_xyz="0 1 0"
+			origin_rpy="0 0 0"
+			origin_xyz="-0.0245 0 -0.148"
+			parent="${L4_name}"
+			child="${L5_name}"
+			limit_effort="300"
+			limit_lower="-${M_PI/2}"
+			limit_upper="${M_PI/4}"
+			limit_v="1"
+	/>
+	<m_link_cylinder
+			name="${L5_name}"
+			mass="${L5_mass}"
+			origin_rpy="0 0 0"
+			origin_xyz="0 0 0"
+			ixx="${L5_ixx}"
+			ixy="${L5_ixy}"
+			ixz="${L5_ixz}"
+			iyy="${L5_iyy}"
+			iyz="${L5_iyz}"
+			izz="${L5_izz}"
+
+			mesh_file="package://singlearm_description/meshes/L5.STL"
+			mesh_scale="0.001 0.001 0.001"
+	/>
+	<m_joint_100
+			name="joint6"
+			type="revolute"
+			axis_xyz="0 0 1"
+			origin_rpy="0 0 0"
+			origin_xyz="0.0245 0 -0.2245"
+			parent="${L5_name}"
+			child="${L6_name}"
+			limit_effort="200"
+			limit_lower="-${M_PI/4}"
+			limit_upper="${M_PI/4}"
+			limit_v="1"
+	/>
+	<m_link_cylinder
+			name="${L6_name}"
+			mass="${L6_mass}"
+			origin_rpy="0 0 0"
+			origin_xyz="0 0 0"
+			ixx="${L6_ixx}"
+			ixy="${L6_ixy}"
+			ixz="${L6_ixz}"
+			iyy="${L6_iyy}"
+			iyz="${L6_iyz}"
+			izz="${L6_izz}"
+
+			mesh_file="package://singlearm_description/meshes/L6.STL"
+			mesh_scale="0.001 0.001 0.001"
+	/>
+	
+</robot>

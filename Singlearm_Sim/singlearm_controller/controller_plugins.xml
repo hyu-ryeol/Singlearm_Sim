@@ -1,0 +1,11 @@
+<library path="lib/libsinglearm_controller">
+
+    <class name="singlearm_controller/ComputedTorque_Control_CLIK"
+           type="singlearm_controller::ComputedTorque_Control_CLIK"
+           base_class_type="controller_interface::ControllerBase">
+        <description>
+            Computed Torque Controller with Closed Loop Inverse Kinematics
+        </description>
+    </class>
+
+</library>

@@ -1,0 +1,28 @@
+ rostopic pub -1 /dual_arm/head1_position_controller/command std_msgs/Float64 "data: 0"
+ rostopic pub -1 /dual_arm/head2_position_controller/command std_msgs/Float64 "data: -0.2"
+ rostopic pub -1 /dual_arm/r_arm1_position_controller/command std_msgs/Float64 "data: 0"
+ rostopic pub -1 /dual_arm/r_arm2_position_controller/command std_msgs/Float64 "data: 0"
+ rostopic pub -1 /dual_arm/r_arm3_position_controller/command std_msgs/Float64 "data: 0"
+ rostopic pub -1 /dual_arm/r_arm4_position_controller/command std_msgs/Float64 "data: 0"
+ rostopic pub -1 /dual_arm/r_arm5_position_controller/command std_msgs/Float64 "data: 0"
+ rostopic pub -1 /dual_arm/r_arm6_position_controller/command std_msgs/Float64 "data: 0"
+rostopic pub -1 /dual_arm/l_arm1_position_controller/command std_msgs/Float64 "data: 0"
+rostopic pub -1 /dual_arm/l_arm2_position_controller/command std_msgs/Float64 "data: 0"
+rostopic pub -1 /dual_arm/l_arm3_position_controller/command std_msgs/Float64 "data: 0"
+rostopic pub -1 /dual_arm/l_arm4_position_controller/command std_msgs/Float64 "data: 0"
+rostopic pub -1 /dual_arm/l_arm5_position_controller/command std_msgs/Float64 "data: 0"
+rostopic pub -1 /dual_arm/l_arm6_position_controller/command std_msgs/Float64 "data: 0"
+
+
+<!-- for gazebo -->
+  <gazebo>
+    <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+      <robotNamespace>/dual_arm</robotNamespace>
+      <robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType>
+      <controlPeriod>0.001</controlPeriod>
+      <legacyModeNS>true</legacyModeNS>
+    </plugin>
+  </gazebo>
+
+
+  rosrun xacro xacro --inorder dual_arm.xacro > dual_arm.urdf

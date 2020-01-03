@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<launch>
+    <include file="$(find gazebo_ros)/launch/empty_world.launch" />
+
+    <param name="robot_description"
+           command="$(find xacro)/xacro '$(find singlearm_description)/urdf/singlearm.xacro'"/>
+
+    <arg name="gui" default="True"/>
+    <node name="rviz" pkg="rviz" type="rviz"/>
+
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" />
+
+    <node
+            name="urdf_spawner"
+            pkg="gazebo_ros"
+            type="spawn_model"
+            respawn="false"
+            output="screen"
+            args="-urdf -model singlearm -param robot_description" />
+</launch>

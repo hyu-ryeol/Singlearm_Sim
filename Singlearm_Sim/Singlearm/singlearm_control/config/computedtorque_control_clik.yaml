@@ -1,0 +1,41 @@
+singlearm:
+  joint_state_controller:
+    type: joint_state_controller/JointStateController
+    publish_rate: 1000
+
+  computedtorque_control_clik:
+    type: singlearm_controller/ComputedTorque_Control_CLIK
+    joints:
+      - joint1
+      - joint2
+      - joint3
+      - joint4
+      - joint5
+      - joint6
+
+
+    gains:
+      
+      joint1:
+        pid: {p: 10.0, i: 11.55, d: 2}
+      joint2:
+        pid: {p: 10.0, i: 11.65, d: 2}
+      joint3:
+        pid: {p: 10.0, i: 11.25, d: 2}
+      joint4:
+        pid: {p: 10.0, i: 11.20, d: 2}
+      joint5:
+        pid: {p: 10.0, i: 11.20, d: 2}
+      joint6:
+        pid: {p: 10.0, i: 11.20, d: 2}
+
+
+    root_link: world
+    tip_link1: link_R_hand
+    tip_link2: link_L_hand
+
+    ctr_obj: 2
+
+    ik_mode: 1
+
+    clik_gain: {K_regulation: 1.0, K_tracking: 0.00005}
