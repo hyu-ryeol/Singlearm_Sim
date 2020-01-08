@@ -24,9 +24,9 @@ singlearm:
       joint4:
         pid: {p: 10.0, i: 11.20, d: 2}
       joint5:
-        pid: {p: 10.0, i: 11.20, d: 2}
+        pid: {p: 1, i: 0, d: 0}
       joint6:
-        pid: {p: 10.0, i: 11.20, d: 2}
+        pid: {p: 1, i: 0, d: 0}
 
 
 
@@ -34,7 +34,7 @@ singlearm:
     tip_link1: link_06
 
 
-    ctr_obj: 2
+    ctr_obj: 0
 
     ik_mode: 1
 

@@ -23,12 +23,12 @@
   
 
 <!-- link_inertia -->
-  <xacro:property name="base_link_ixx" value="0.0"/>
-  <xacro:property name="base_link_ixy" value="0.0"/>
-  <xacro:property name="base_link_ixz" value="0.0"/>
-  <xacro:property name="base_link_iyy" value="0.0"/>
-  <xacro:property name="base_link_izz" value="0.0"/>
-  <xacro:property name="base_link_iyz" value="0.0"/>
+  <xacro:property name="base_link_ixx" value="0"/>
+  <xacro:property name="base_link_ixy" value="0"/>
+  <xacro:property name="base_link_ixz" value="0"/>
+  <xacro:property name="base_link_iyy" value="0"/>
+  <xacro:property name="base_link_izz" value="0"/>
+  <xacro:property name="base_link_iyz" value="0"/>
 
   <xacro:property name="L1_ixx" value="0.096344"/>
   <xacro:property name="L1_ixy" value="0.0000230"/>

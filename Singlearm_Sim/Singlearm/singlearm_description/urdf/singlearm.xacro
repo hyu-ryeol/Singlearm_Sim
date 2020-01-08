@@ -30,7 +30,8 @@
 			iyy="${base_link_iyy}"
 			iyz="${base_link_iyz}"
 			izz="${base_link_izz}"
-
+			vis_rpy="0 0 0"
+			vis_xyz="0 0 0"
 			mesh_file="package://singlearm_description/meshes/base_link.STL"
 			mesh_scale="0.001 0.001 0.001"
 	/>
@@ -53,13 +54,16 @@
 			name="${L1_name}"
 			mass="${L1_mass}"
 			origin_rpy="0 0 0"
-			origin_xyz="0 0 0"
+			origin_xyz="0.0671349 -0.0000384 0.0588309"
 			ixx="${L1_ixx}"
 			ixy="${L1_ixy}"
 			ixz="${L1_ixz}"
 			iyy="${L1_iyy}"
 			iyz="${L1_iyz}"
 			izz="${L1_izz}"
+
+			vis_rpy="0 0 0"
+			vis_xyz="0 0 0"
 
 			mesh_file="package://singlearm_description/meshes/L1.STL"
 			mesh_scale="0.001 0.001 0.001"
@@ -81,13 +85,17 @@
 			name="${L2_name}"
 			mass="${L2_mass}"
 			origin_rpy="0 0 0"
-			origin_xyz="0 0 0"
+			origin_xyz="0.0724494 0.0167624 0.0001735"
+			
 			ixx="${L2_ixx}"
 			ixy="${L2_ixy}"
 			ixz="${L2_ixz}"
 			iyy="${L2_iyy}"
 			iyz="${L2_iyz}"
 			izz="${L2_izz}"
+
+			vis_rpy="0 0 0"
+			vis_xyz="0 0 0"
 
 			mesh_file="package://singlearm_description/meshes/L2.STL"
 			mesh_scale="0.001 0.001 0.001"
@@ -109,14 +117,19 @@
 	<m_link_cylinder
 			name="${L3_name}"
 			mass="${L3_mass}"
+
 			origin_rpy="0 0 0"
-			origin_xyz="0 0 0"
+			origin_xyz="0.0001081 0.0015321 -0.1744158"
+			
 			ixx="${L3_ixx}"
 			ixy="${L3_ixy}"
 			ixz="${L3_ixz}"
 			iyy="${L3_iyy}"
 			iyz="${L3_iyz}"
 			izz="${L3_izz}"
+
+			vis_rpy="0 0 0"
+			vis_xyz="0 0 0"
 
 			mesh_file="package://singlearm_description/meshes/L3.STL"
 			mesh_scale="0.001 0.001 0.001"
@@ -138,13 +151,17 @@
 			name="${L4_name}"
 			mass="${L4_mass}"
 			origin_rpy="0 0 0"
-			origin_xyz="0 0 0"
+			origin_xyz="-0.0230881 -0.0145184 -0.129937"
+			
 			ixx="${L4_ixx}"
 			ixy="${L4_ixy}"
 			ixz="${L4_ixz}"
 			iyy="${L4_iyy}"
 			iyz="${L4_iyz}"
 			izz="${L4_izz}"
+
+			vis_rpy="0 0 0"
+			vis_xyz="0 0 0"
 
 			mesh_file="package://singlearm_description/meshes/L4.STL"
 			mesh_scale="0.001 0.001 0.001"
@@ -166,13 +183,17 @@
 			name="${L5_name}"
 			mass="${L5_mass}"
 			origin_rpy="0 0 0"
-			origin_xyz="0 0 0"
+			origin_xyz="0.0192632 -0.0014654 -0.1592943"
+			
 			ixx="${L5_ixx}"
 			ixy="${L5_ixy}"
 			ixz="${L5_ixz}"
 			iyy="${L5_iyy}"
 			iyz="${L5_iyz}"
 			izz="${L5_izz}"
+
+			vis_rpy="0 0 0"
+			vis_xyz="0 0 0"
 
 			mesh_file="package://singlearm_description/meshes/L5.STL"
 			mesh_scale="0.001 0.001 0.001"
@@ -194,13 +215,17 @@
 			name="${L6_name}"
 			mass="${L6_mass}"
 			origin_rpy="0 0 0"
-			origin_xyz="0 0 0"
+			origin_xyz="0 0 -0.0066153"
+			
 			ixx="${L6_ixx}"
 			ixy="${L6_ixy}"
 			ixz="${L6_ixz}"
 			iyy="${L6_iyy}"
 			iyz="${L6_iyz}"
 			izz="${L6_izz}"
+
+			vis_rpy="0 0 0"
+			vis_xyz="0 0 0"
 
 			mesh_file="package://singlearm_description/meshes/L6.STL"
 			mesh_scale="0.001 0.001 0.001"

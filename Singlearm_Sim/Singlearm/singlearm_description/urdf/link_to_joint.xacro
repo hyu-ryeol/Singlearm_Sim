@@ -34,7 +34,7 @@
   </xacro:macro>
 
   <xacro:macro name="m_link_cylinder"
-               params="name origin_xyz origin_rpy mass ixx ixy ixz iyy iyz izz mesh_file mesh_scale">
+               params="name origin_xyz origin_rpy vis_rpy vis_xyz mass ixx ixy ixz iyy iyz izz mesh_file mesh_scale">
     <link name="${name}">
       <inertial>
         <mass value="${mass}" />
@@ -61,8 +61,8 @@
       </collision>-->
       <visual>
         <origin
-                rpy="${origin_rpy}"
-                xyz="${origin_xyz}" />
+                rpy="${vis_rpy}"
+                xyz="${vis_xyz}" />
         <geometry>
           <mesh
                   filename="${mesh_file}"

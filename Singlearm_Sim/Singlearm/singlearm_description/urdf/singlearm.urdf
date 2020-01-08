@@ -268,7 +268,7 @@
   <link name="link_06">
     <inertial>
       <mass value="0.0612"/>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <origin rpy="0 0 0" xyz="0 0 0.2"/>
       <inertia ixx="0.0129617" ixy="0.0" ixz="0.0056294" iyy="0.0154097" iyz="0.0" izz="0.0024798"/>
     </inertial>
     <!--<collision>

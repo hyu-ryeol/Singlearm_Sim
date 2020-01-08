@@ -545,8 +545,8 @@ namespace  singlearm_controller
 
             for (int i = 0; i < n_joints_; i++)
             {
-                joints_[i].setCommand(torque[i]);
-                //joints_[i].setCommand(0.0);
+                //joints_[i].setCommand(torque[i]);
+                joints_[i].setCommand(0.0);
             }
 
             // ********* 4. data 저장 *********
