@@ -12,10 +12,16 @@
 
 // from kdl packages
 #include <kdl/tree.hpp>
+#include <kdl/kdl.hpp>
 #include <kdl/chain.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/chaindynparam.hpp>              // inverse dynamics
 #include <kdl/chainjnttojacsolver.hpp>        // jacobian
+#include <kdl/chainfksolverpos_recursive.hpp> // forward kinematics
+
+#include <boost/scoped_ptr.hpp>
+#include <boost/lexical_cast.hpp>
+
 
 #include <cmath>
 #define _USE_MATH_DEFINES
@@ -198,8 +204,6 @@ namespace  singlearm_controller
                 return false;
             }
 
-
-
             if (!kdl_tree_.getChain(root_name, tip_name1, kdl_chain_))
             {
                 ROS_ERROR_STREAM("Failed to get KDL chain from tree: ");
@@ -222,10 +226,22 @@ namespace  singlearm_controller
                 ROS_INFO("Got kdl chain");
             }
 
+            gravity_ = KDL::Vector::Zero();
+            gravity_(2) = -9.81; // 0: x-axis 1: y-axis 2: z-axis
+
+            id_solver_.reset(new KDL::ChainDynParam(kdl_chain_, gravity_));
+
+            // 4.4 jacobian solver 초기화
+            jnt_to_jac_solver_.reset(new KDL::ChainJntToJacSolver(kdl_chain_));
+
+            // 4.5 forward kinematics solver 초기화
+            fk_pos_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
+
             // ********* 5. 각종 변수 초기화 *********
 
             // 5.1 KDL Vector 초기화 (사이즈 정의 및 값 0)
-            x_cmd_.data = Eigen::VectorXd::Zero(2*num_taskspace);
+            tau_d_.data = Eigen::VectorXd::Zero(n_joints_);
+            x_cmd_.data = Eigen::VectorXd::Zero(num_taskspace);
 
             qd_.data = Eigen::VectorXd::Zero(n_joints_);
             qd_dot_.data = Eigen::VectorXd::Zero(n_joints_);
@@ -234,6 +250,17 @@ namespace  singlearm_controller
 
             q_.data = Eigen::VectorXd::Zero(n_joints_);
             qdot_.data = Eigen::VectorXd::Zero(n_joints_);
+
+            e_.data = Eigen::VectorXd::Zero(n_joints_);
+            e_dot_.data = Eigen::VectorXd::Zero(n_joints_);
+            e_int_.data = Eigen::VectorXd::Zero(n_joints_);
+
+            // 5.2 KDL Matrix 초기화 (사이즈 정의 및 값 0)
+            J_.resize(kdl_chain_.getNrOfJoints());
+            // J_inv_.resize(kdl_chain_.getNrOfJoints());
+            M_.resize(kdl_chain_.getNrOfJoints());
+            C_.resize(kdl_chain_.getNrOfJoints());
+            G_.resize(kdl_chain_.getNrOfJoints());
 
             // ********* 6. ROS 명령어 *********
             // 6.1 publisher
@@ -306,247 +333,30 @@ namespace  singlearm_controller
                 //torque_(i) = joints_[i].getEffort();
             }
 
-            Map<VectorXd>(q, n_joints_) = q_.data;
-            Map<VectorXd>(qdot, n_joints_) = qdot_.data;
 
-            cManipulator->pKin->PrepareJacobian(q);
-            cManipulator->pDyn->PrepareDynamics(q, qdot);
+            qd_.data.setZero();
+            qd_.data(1) = M_PI/2;
+            qd_dot_.data.setZero();
+            qd_ddot_.data.setZero();
 
-            cManipulator->pDyn->G_Matrix(G);
+            e_.data = qd_.data - q_.data;
+            e_dot_.data = qd_dot_.data - qdot_.data;
 
-            cManipulator->pKin->GetpinvJacobian(pInvJac);
-            cManipulator->pKin->GetAnalyticJacobian(AJac);
-            cManipulator->pKin->GetScaledTransJacobian(ScaledTransJac);
-            cManipulator->pKin->GetForwardKinematics(ForwardPos, ForwardOri, NumChain);
-            cManipulator->pKin->GetAngleAxis(ForwardAxis, ForwardAngle, NumChain);
+            // *** 3.2 Compute model(M,C,G) ***
+            id_solver_->JntToMass(q_, M_);
+            id_solver_->JntToCoriolis(q_, qdot_, C_);
+            id_solver_->JntToGravity(q_, G_);
 
-            xd_dot_.setZero();
+            // *** 3.3 Apply Torque Command to Actuator ***
+            aux_d_.data = M_.data * (qd_ddot_.data + Kp_.data.cwiseProduct(e_.data) + Kd_.data.cwiseProduct(e_dot_.data));
+            comp_d_.data = C_.data + G_.data;
+            tau_d_.data = aux_d_.data + comp_d_.data;
 
-            InitTime=5.0;
-
-            if(t <= InitTime || ctr_obj_ == 0)
-            {
-                //qd_.data.setZero();
-
-                qd_.data(0) = -0.0*D2R;
-                qd_.data(1) = -10.0*D2R;
-                qd_.data(2) = -20.0*D2R;
-                qd_.data(3) = -0.0*D2R;
-                qd_.data(4) = -70.0*D2R;
-                qd_.data(5) = 70.0*D2R;
-                qd_.data(6) = 0.0*D2R;
-                qd_.data(7) = 0.0*D2R;
-
-                qd_old_ = qd_;
-
-            } else{
-                if (ctr_obj_ == 1)
-                {
-                    xd_[0].p(0) = b1;
-                    xd_[0].p(1) = b2;
-                    xd_[0].p(2) = b3;
-                    xd_[0].M = KDL::Rotation(KDL::Rotation::RPY(-M_PI/2, 0, M_PI/2));
-
-                    xd_dot_.setZero();
-
-                    xd_[1].p(0) = 0.763;
-                    xd_[1].p(1) = -0.027;
-                    xd_[1].p(2) = 0.710;
-                    xd_[1].M = KDL::Rotation(KDL::Rotation::RPY(0, M_PI/2, 0));
-
-                    ex_.setZero();
-                    ex_temp_ = diff(x_[0], xd_[0]);
-                    ex_(0) = ex_temp_(3);
-                    ex_(1) = ex_temp_(4);
-                    ex_(2) = ex_temp_(5);
-                    ex_(3) = ex_temp_(0);
-                    ex_(4) = ex_temp_(1);
-                    ex_(5) = ex_temp_(2);
-
-                    ex_temp_ = diff(x_[1], xd_[1]);
-                    ex_(6) = ex_temp_(3);
-                    ex_(7) = ex_temp_(4);
-                    ex_(8) = ex_temp_(5);
-                    ex_(9) = ex_temp_(0);
-                    ex_(10) = ex_temp_(1);
-                    ex_(11) = ex_temp_(2);
-
-                    //qd_dot_.data = pInvJac * (xd_dot_ + K_tracking_ * ex_);
-                    qd_dot_.data = AJac.transpose() * (xd_dot_ + K_tracking_ * ex_);
-                    //qd_dot_.data = ScaledTransJac * (xd_dot_ + K_tracking_ * ex_);
-                    qd_.data = qd_old_.data + qd_dot_.data * dt;
-                    qd_old_.data = qd_.data;
-
-                }
-                else if (ctr_obj_ == 2)
-                {
-                    if (ik_mode_ == 1) // Open-loop Inverse Kinematics
-                    {
-
-                        xd_[0].p(0) = A * sin(f * M_PI * (t - InitTime)) + b1;
-                        xd_[0].p(1) = b2;
-                        xd_[0].p(2) = b3;
-                        xd_[0].M = KDL::Rotation(KDL::Rotation::RPY(-M_PI/2, 0, M_PI/2));
-
-                        xd_dot_.setZero();
-                        xd_dot_(3) = (f * M_PI) * A * cos(f * M_PI * (t - InitTime));
-
-                        xd_[1].p(0) = 0.763;
-                        xd_[1].p(1) = -0.027;
-                        xd_[1].p(2) = 0.710;
-                        xd_[1].M = KDL::Rotation(KDL::Rotation::RPY(0, M_PI/2, 0));
-
-                        x_[0].p(0) = ForwardPos[0](0);
-                        x_[0].p(1) = ForwardPos[0](1);
-                        x_[0].p(2) = ForwardPos[0](2);
-                        x_[0].M = KDL::Rotation(KDL::Rotation::RPY(ForwardOri[0](0), ForwardOri[0](1), ForwardOri[0](2)));
-
-                        x_[1].p(0) = ForwardPos[1](0);
-                        x_[1].p(1) = ForwardPos[1](1);
-                        x_[1].p(2) = ForwardPos[1](2);
-                        x_[1].M = KDL::Rotation(KDL::Rotation::RPY(ForwardOri[1](0), ForwardOri[1](1), ForwardOri[1](2)));
-
-                        ex_.setZero();
-                        ex_temp_ = diff(x_[0], xd_[0]);
-                        ex_(0) = ex_temp_(3);
-                        ex_(1) = ex_temp_(4);
-                        ex_(2) = ex_temp_(5);
-                        ex_(3) = ex_temp_(0);
-                        ex_(4) = ex_temp_(1);
-                        ex_(5) = ex_temp_(2);
-
-                        ex_temp_ = diff(x_[1], xd_[1]);
-                        ex_(6) = ex_temp_(3);
-                        ex_(7) = ex_temp_(4);
-                        ex_(8) = ex_temp_(5);
-                        ex_(9) = ex_temp_(0);
-                        ex_(10) = ex_temp_(1);
-                        ex_(11) = ex_temp_(2);
-
-                        qd_dot_.data = pInvJac * (xd_dot_ + K_tracking_ * ex_);
-                        //qd_dot_.data = AJac.transpose() * (xd_dot_ + K_tracking_ * ex_);
-                        //qd_dot_.data = ScaledTransJac * (xd_dot_ + K_tracking_ * ex_);
-                        qd_.data = qd_old_.data + qd_dot_.data * dt;
-                        qd_old_.data = qd_.data;
-
-                    }
-                    else if (ik_mode_ == 2) // Closed-loop Inverse Kinematics
-                    {
-
-                        xd_[0].p(0) = b1;
-                        xd_[0].p(1) = A * sin(f * M_PI * (t - InitTime)) + b2;
-                        xd_[0].p(2) = b3;
-                        xd_[0].M = KDL::Rotation(KDL::Rotation::RPY(-M_PI/2, 0, M_PI/2));
-
-                        xd_[1].p(0) = 0.763;
-                        xd_[1].p(1) = -0.027;
-                        xd_[1].p(2) = 0.710;
-                        xd_[1].M = KDL::Rotation(KDL::Rotation::RPY(0, M_PI/2, 0));
-
-                        xd_dot_.setZero();
-                        xd_dot_(4) = (f * M_PI) * A * cos(f * M_PI * (t - InitTime));
-
-                        dSE3.block<3,1>(0,3) = dx.segment(3,3);
-                        cManipulator->pKin->RollPitchYawtoSO3(dx(0), dx(1), dx(2), dSO3);
-                        dSE3.block<3,3>(0,0) = dSO3;
-                        EndNum=9;
-                        aSE3 = cManipulator->pKin->GetForwardKinematicsSE3(EndNum);
-                        eSE3 = cManipulator->pKin->inverse_SE3(aSE3)*dSE3;
-                        cManipulator->pKin->LogSO3(eSE3.block(0,0,3,3), eAxis, eAngle);
-
-                        ex_(0) = eAxis(0)*eAngle;
-                        ex_(1) = eAxis(1)*eAngle;
-                        ex_(2) = eAxis(2)*eAngle;
-                        ex_(3) = (xd_[0].p(0) - ForwardPos[0](0));
-                        ex_(4) = (xd_[0].p(1) - ForwardPos[0](1));
-                        ex_(5) = (xd_[0].p(2) - ForwardPos[0](2));
-
-                        dSE3.block<3,1>(0,3) = dx.segment(9,3);
-                        cManipulator->pKin->RollPitchYawtoSO3(dx(6), dx(7), dx(8), dSO3);
-                        dSE3.block<3,3>(0,0) = dSO3;
-                        EndNum=15;
-                        aSE3 = cManipulator->pKin->GetForwardKinematicsSE3(EndNum);
-                        eSE3 = cManipulator->pKin->inverse_SE3(aSE3)*dSE3;
-                        cManipulator->pKin->LogSO3(eSE3.block(0,0,3,3), eAxis, eAngle);
-                        ex_(6) = eAxis(0)*eAngle;
-                        ex_(7) = eAxis(1)*eAngle;
-                        ex_(8) = eAxis(2)*eAngle;
-                        ex_(9) = (xd_[1].p(0) - ForwardPos[1](0));
-                        ex_(10) = (xd_[1].p(1) - ForwardPos[1](1));
-                        ex_(11) = (xd_[1].p(2) - ForwardPos[1](2));
-
-                        //qd_dot_.data = pInvJac * (xd_dot_ + K_tracking_ * ex_);
-                        qd_dot_.data = AJac.transpose() * (xd_dot_ + K_tracking_ * ex_);
-                        //qd_dot_.data = ScaledTransJac * (xd_dot_ + K_tracking_ * ex_);
-                        qd_.data = qd_old_.data + qd_dot_.data * dt;
-                        qd_old_.data = qd_.data;
-                    }
-                    else if (ik_mode_ == 3) // Closed-loop Inverse Kinematics
-                    {
-
-                        dx(0) = -M_PI/2;
-                        dx(1) = 0;
-                        dx(2) = M_PI/2;
-                        dx(3) = b1;
-                        dx(4) = b2;
-                        dx(5) = A * sin(f * M_PI * (t - InitTime)) + b3;
-
-                        dx(6) = 0;
-                        dx(7) = M_PI/2;
-                        dx(8) = 0;
-                        dx(9) = 0.763;
-                        dx(10) = -0.027;
-                        dx(11) = 0.710;
-
-                        dxdot.setZero();
-                        dxdot(5) = (f * M_PI) * A * cos(f * M_PI * (t - InitTime));
-
-                        dSE3.block<3,1>(0,3) = dx.segment(3,3);
-                        cManipulator->pKin->RollPitchYawtoSO3(dx(0), dx(1), dx(2), dSO3);
-                        dSE3.block<3,3>(0,0) = dSO3;
-                        EndNum=9;
-                        aSE3 = cManipulator->pKin->GetForwardKinematicsSE3(EndNum);
-                        eSE3 = cManipulator->pKin->inverse_SE3(aSE3)*dSE3;
-                        cManipulator->pKin->LogSO3(eSE3.block(0,0,3,3), eAxis, eAngle);
-
-                        ex_(0) = eAxis(0)*eAngle;
-                        ex_(1) = eAxis(1)*eAngle;
-                        ex_(2) = eAxis(2)*eAngle;
-                        ex_(3) = (xd_[0].p(0) - ForwardPos[0](0));
-                        ex_(4) = (xd_[0].p(1) - ForwardPos[0](1));
-                        ex_(5) = (xd_[0].p(2) - ForwardPos[0](2));
-
-                        dSE3.block<3,1>(0,3) = dx.segment(9,3);
-                        cManipulator->pKin->RollPitchYawtoSO3(dx(6), dx(7), dx(8), dSO3);
-                        dSE3.block<3,3>(0,0) = dSO3;
-                        EndNum=15;
-                        aSE3 = cManipulator->pKin->GetForwardKinematicsSE3(EndNum);
-                        eSE3 = cManipulator->pKin->inverse_SE3(aSE3)*dSE3;
-                        cManipulator->pKin->LogSO3(eSE3.block(0,0,3,3), eAxis, eAngle);
-                        ex_(6) = eAxis(0)*eAngle;
-                        ex_(7) = eAxis(1)*eAngle;
-                        ex_(8) = eAxis(2)*eAngle;
-                        ex_(9) = (xd_[1].p(0) - ForwardPos[1](0));
-                        ex_(10) = (xd_[1].p(1) - ForwardPos[1](1));
-                        ex_(11) = (xd_[1].p(2) - ForwardPos[1](2));
-
-                        //qd_dot_.data = pInvJac * (xd_dot_ + K_tracking_ * ex_);
-                        //qd_dot_.data = AJac.transpose() * (xd_dot_ + K_tracking_ * ex_);
-                        qd_dot_.data = ScaledTransJac * (xd_dot_ + K_tracking_ * ex_);
-                        qd_.data = qd_old_.data + qd_dot_.data * dt;
-                        qd_old_.data = qd_.data;
-                    }
-
-                }
-            }
-
-
-            Control->InvDynController(q_.data, qdot_.data, qd_.data, qd_dot_.data, qd_ddot_.data, torque, dt);
 
             for (int i = 0; i < n_joints_; i++)
             {
-                //joints_[i].setCommand(torque[i]);
-                joints_[i].setCommand(0.0);
+                joints_[i].setCommand(tau_d_(i));
+                //joints_[i].setCommand(0.0);
             }
 
             // ********* 4. data 저장 *********
@@ -588,7 +398,8 @@ namespace  singlearm_controller
                 }
 
                 printf("*** States in Joint Space (unit: deg) ***\n");
-                Control->GetPIDGain(Kp_.data, Kd_.data, Ki_.data);
+
+                //Control->GetPIDGain(Kp_.data, Kd_.data, Ki_.data);
                 for(int i=0; i < n_joints_; i++)
                 {
                     printf("Joint ID:%d \t", i+1);
@@ -597,10 +408,10 @@ namespace  singlearm_controller
                     printf("dq: %0.3lf, ", qd_.data(i) * R2D);
                     printf("qdot: %0.3lf, ", qdot_.data(i) * R2D);
                     printf("dqdot: %0.3lf, ", qd_dot_.data(i) * R2D);
-                    printf("tau: %0.3f, %0.3f", torque[i], G(i));
+                    printf("tau: %0.3f", tau_d_.data(i));
                     printf("\n");
                 }
-
+                /*
                 printf("Forward Kinematics:\n");
                 for(int j=0; j<NumChain; j++)
                 {
@@ -610,7 +421,7 @@ namespace  singlearm_controller
                 }
                 printf("Right e(u):%0.3lf, e(v):%0.3lf, e(w):%0.3lf, e(x):%0.3lf, e(y):%0.3lf, e(z):%0.3lf\n",ex_(0), ex_(1), ex_(2), ex_(3), ex_(4), ex_(5));
                 printf("Left e(u):%0.3lf, e(v):%0.3lf, e(w):%0.3lf, e(x):%0.3lf, e(y):%0.3lf, e(z):%0.3lf\n",ex_(6), ex_(7), ex_(8), ex_(9), ex_(10), ex_(11));
-
+                */
                 count = 0;
             }
             count++;
@@ -639,7 +450,25 @@ namespace  singlearm_controller
         // kdl
         KDL::Tree kdl_tree_;
         KDL::Chain kdl_chain_;
-        KDL::Chain kdl_chain2_;
+
+        // kdl M,C,G
+        KDL::JntSpaceInertiaMatrix M_; // intertia matrix
+        KDL::JntArray C_;              // coriolis
+        KDL::JntArray G_;              // gravity torque vector
+        KDL::Vector gravity_;
+
+        // kdl and Eigen Jacobian
+        KDL::Jacobian J_;
+        // KDL::Jacobian J_inv_;
+        // Eigen::Matrix<double, num_taskspace, num_taskspace> J_inv_;
+        Eigen::MatrixXd J_inv_;
+        Eigen::Matrix<double, num_taskspace, num_taskspace> J_transpose_;
+
+        // kdl solver
+        boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> fk_pos_solver_; //Solver to compute the forward kinematics (position)
+        // boost::scoped_ptr<KDL::ChainFkSolverVel_recursive> fk_vel_solver_; //Solver to compute the forward kinematics (velocity)
+        boost::scoped_ptr<KDL::ChainJntToJacSolver> jnt_to_jac_solver_; //Solver to compute the jacobian
+        boost::scoped_ptr<KDL::ChainDynParam> id_solver_;               // Solver To compute the inverse dynamics
 
         VectorXd G;
 
@@ -661,6 +490,7 @@ namespace  singlearm_controller
         KDL::JntArray qd_old_;
         KDL::JntArray q_;
         KDL::JntArray qdot_;
+        KDL::JntArray e_, e_dot_, e_int_;
 
         double q[15];
         double qdot[15];
@@ -668,18 +498,23 @@ namespace  singlearm_controller
 
         // Task Space State
         // ver. 01
-        KDL::Frame xd_[2]; // x.p: frame position(3x1), x.m: frame orientation (3x3)
-        KDL::Frame x_[2];
+        KDL::Frame xd_; // x.p: frame position(3x1), x.m: frame orientation (3x3)
+        KDL::Frame x_;
         KDL::Twist ex_temp_;
 
         // KDL::Twist xd_dot_, xd_ddot_;
-        Eigen::Matrix<double, 2*num_taskspace, 1> ex_;
-        Eigen::Matrix<double, 2*num_taskspace, 1> dx;
-        Eigen::Matrix<double, 2*num_taskspace, 1> dxdot;
-        Eigen::Matrix<double, 2*num_taskspace, 1> xd_dot_;
+        Eigen::Matrix<double, num_taskspace, 1> ex_;
+        Eigen::Matrix<double, num_taskspace, 1> dx;
+        Eigen::Matrix<double, num_taskspace, 1> dxdot;
+        Eigen::Matrix<double, num_taskspace, 1> xd_dot_;
 
         // Input
         KDL::JntArray x_cmd_;
+
+        // Torque
+        KDL::JntArray aux_d_;
+        KDL::JntArray comp_d_;
+        KDL::JntArray tau_d_;
 
         // gains
         KDL::JntArray Kp_, Ki_, Kd_;
