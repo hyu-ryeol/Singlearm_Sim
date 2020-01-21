@@ -24,7 +24,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: LaserScan
+    SyncSource: ""
 
 Visualization Manager:
   Class: ""
@@ -64,8 +64,8 @@ Visualization Manager:
     Background Color: 238; 238; 238
     Fixed Frame: world
     Frame Rate: 30
-  Name: root
 
+  Name: root
   Tools:
     - Class: rviz/Interact
       Hide Inactive Objects: true
@@ -85,16 +85,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 10.3891287
+      Distance: 10
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.543884933
-        Y: -0.380490273
-        Z: 0.564803362
+        X: 0
+        Y: 0
+        Z: 0
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.0500000007
       Name: Current View

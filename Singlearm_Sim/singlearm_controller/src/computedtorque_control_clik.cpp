@@ -4,8 +4,12 @@
 
 
 // from ros-control meta packages
+#include <control_msgs/JointControllerState.h>
 #include <controller_interface/controller.h>
 #include <hardware_interface/joint_command_interface.h>
+#include <realtime_tools/realtime_buffer.h>
+#include <realtime_tools/realtime_publisher.h>
+#include <ros/node_handle.h>
 #include <pluginlib/class_list_macros.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <urdf/model.h>
@@ -28,6 +32,7 @@
 
 #include <SerialManipulator.h>
 #include <Controller.h>
+#include "singlearm_controller/ControllerJointState.h"
 
 #define D2R M_PI/180.0
 #define R2D 180.0/M_PI
@@ -45,6 +50,8 @@ namespace  singlearm_controller
     class ComputedTorque_Control_CLIK : public controller_interface::Controller<hardware_interface::EffortJointInterface>
     {
     public:
+      ComputedTorque_Control_CLIK(){}
+      ~ComputedTorque_Control_CLIK(){sub_command_.shutdown();}
         bool init(hardware_interface::EffortJointInterface *hw, ros::NodeHandle &n)
         {
             // ********* 1. Get joint name / gain from the parameter server *********
@@ -241,19 +248,16 @@ namespace  singlearm_controller
 
             // 5.1 KDL Vector 초기화 (사이즈 정의 및 값 0)
             tau_d_.data = Eigen::VectorXd::Zero(n_joints_);
-            x_cmd_.data = Eigen::VectorXd::Zero(num_taskspace);
 
             qd_.data = Eigen::VectorXd::Zero(n_joints_);
             qd_dot_.data = Eigen::VectorXd::Zero(n_joints_);
             qd_ddot_.data = Eigen::VectorXd::Zero(n_joints_);
-            qd_old_.data = Eigen::VectorXd::Zero(n_joints_);
 
             q_.data = Eigen::VectorXd::Zero(n_joints_);
             qdot_.data = Eigen::VectorXd::Zero(n_joints_);
 
             e_.data = Eigen::VectorXd::Zero(n_joints_);
             e_dot_.data = Eigen::VectorXd::Zero(n_joints_);
-            e_int_.data = Eigen::VectorXd::Zero(n_joints_);
 
             // 5.2 KDL Matrix 초기화 (사이즈 정의 및 값 0)
             J_.resize(kdl_chain_.getNrOfJoints());
@@ -264,79 +268,74 @@ namespace  singlearm_controller
 
             // ********* 6. ROS 명령어 *********
             // 6.1 publisher
-            pub_qd_ = n.advertise<std_msgs::Float64MultiArray>("qd", 1000);
-            pub_q_ = n.advertise<std_msgs::Float64MultiArray>("q", 1000);
-            pub_e_ = n.advertise<std_msgs::Float64MultiArray>("e", 1000);
+            controller_state_pub_.reset(new realtime_tools::RealtimePublisher<singlearm_controller::ControllerJointState>(n, "state", 1));
+            controller_state_pub_->msg_.header.stamp = ros::Time::now();
+            for (size_t i=0; i<n_joints_; i++)
+            {
+              controller_state_pub_->msg_.name.push_back(joint_names_[i]);
+              controller_state_pub_->msg_.q.push_back(0.0);
+              controller_state_pub_->msg_.dq.push_back(0.0);
+              controller_state_pub_->msg_.qdot.push_back(0.0);
+              controller_state_pub_->msg_.dqdot.push_back(0.0);
+              controller_state_pub_->msg_.ctrl_input.push_back(0.0);
+            }
 
-            pub_xd_ = n.advertise<std_msgs::Float64MultiArray>("xd", 1000);
-            pub_x_ = n.advertise<std_msgs::Float64MultiArray>("x", 1000);
-            pub_ex_ = n.advertise<std_msgs::Float64MultiArray>("ex", 1000);
-
-            pub_SaveData_ = n.advertise<std_msgs::Float64MultiArray>("SaveData", 1000);
 
             // 6.2 subsriber
-            sub_x_cmd_ = n.subscribe<std_msgs::Float64MultiArray>(
-                    "command",
-                    1, &ComputedTorque_Control_CLIK::commandCB,
-                    this);
-            event = 0; // subscribe 받기 전: 0
-            // subscribe 받은 후: 1
+            commands_buffer_.writeFromNonRT(std::vector<double>(n_joints_, 0.0));
+            sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command",1, &ComputedTorque_Control_CLIK::commandCB,this);
+            event = 0;
 
             return true;
         }
 
         void commandCB(const std_msgs::Float64MultiArrayConstPtr &msg)
         {
-            if (msg->data.size() != 2*num_taskspace)
+            if (msg->data.size() != n_joints_)
             {
                 ROS_ERROR_STREAM("Dimension of command (" << msg->data.size() << ") does not match DOF of Task Space (" << 2 << ")! Not executing!");
                 return;
+            } else{
+              commands_buffer_.writeFromNonRT(msg->data);
+              event = 1; // subscribe 받기 전: 0
+              // subscribe 받은 후: 1
             }
-
-            for (int i = 0; i < 2*num_taskspace; i++)
-            {
-                x_cmd_(i) = msg->data[i];
-            }
-
-            event = 1; // subscribe 받기 전: 0
-            // subscribe 받은 후: 1
         }
 
         void starting(const ros::Time &time) override
         {
-            t = 0.0;
-            ROS_INFO("Starting Computed Torque Controller with Closed-Loop Inverse Kinematics");
+          t = time;
 
-            cManipulator = new SerialManipulator;
-            Control = new HYUControl::Controller(cManipulator);
+          cManipulator = new SerialManipulator;
+          Control = new HYUControl::Controller(cManipulator);
 
-            cManipulator->UpdateManipulatorParam();
+          cManipulator->UpdateManipulatorParam();
 
-            Control->SetPIDGain(Kp_.data, Kd_.data, Ki_.data);
+          Control->SetPIDGain(Kp_.data, Kd_.data, Ki_.data);
 
-            dx.setZero();
-            dxdot.setZero();
+          qd_.data.setZero();
+          qd_dot_.data.setZero();
+          qd_ddot_.data.setZero();
+
+          ROS_INFO("Starting Computed Torque Controller with Closed-Loop Inverse Kinematics");
         }
 
         void update(const ros::Time &time, const ros::Duration &period) override
         {
             // ********* 0. Get states from gazebo *********
             // 0.1 sampling time
-            t = t + 0.001;
+            t = time;
+
+            std::vector<double> &commands = *commands_buffer_.readFromRT();
 
             // 0.2 joint state
             for (int i = 0; i < n_joints_; i++)
             {
-                q_(i) = joints_[i].getPosition();
-                qdot_(i) = joints_[i].getVelocity();
-                //torque_(i) = joints_[i].getEffort();
+                q_.data(i) = joints_[i].getPosition();
+                qdot_.data(i) = joints_[i].getVelocity();
+                //torque_.data(i) = joints_[i].getEffort();
+                qd_.data(i) = commands[i]*D2R;
             }
-
-
-            qd_.data.setZero();
-            qd_.data(1) = -M_PI/4;
-            qd_dot_.data.setZero();
-            qd_ddot_.data.setZero();
 
             e_.data = qd_.data - q_.data;
             e_dot_.data = qd_dot_.data - qdot_.data;
@@ -355,11 +354,10 @@ namespace  singlearm_controller
             for (int i = 0; i < n_joints_; i++)
             {
                 joints_[i].setCommand(tau_d_(i));
-                //joints_[i].setCommand(0.0);
             }
 
             // ********* 4. data 저장 *********
-            save_data();
+            publish_data();
 
             // ********* 5. state 출력 *********
             print_state();
@@ -371,22 +369,40 @@ namespace  singlearm_controller
             delete cManipulator;
         }
 
-        static void save_data()
+        void publish_data()
         {
-
+          static int loop_count_=0;
+          if (loop_count_ >= 9)
+          {
+            if (controller_state_pub_->trylock())
+            {
+              controller_state_pub_->msg_.header.stamp = t;
+              for(int i=0; i<n_joints_; i++)
+              {
+                controller_state_pub_->msg_.q[i] = q_.data(i);
+                controller_state_pub_->msg_.dq[i] = qd_.data(i);
+                controller_state_pub_->msg_.qdot[i] = qdot_.data(i);
+                controller_state_pub_->msg_.dqdot[i] = qd_dot_.data(i);
+                controller_state_pub_->msg_.ctrl_input[i] = tau_d_.data(i);
+              }
+              controller_state_pub_->unlockAndPublish();
+            }
+            loop_count_=0;
+          }
+          loop_count_++;
         }
 
         void print_state()
         {
             static int count = 0;
-            if (count > 99)
+            if (count >= 99)
             {
                 printf("*********************************************************\n\n");
                 printf("*** Simulation Time (unit: sec)  ***\n");
-                printf("t = %f\n", t);
+                printf("t = %f\n", (double)t.toSec());
                 printf("\n");
 
-                printf("*** Command from Subscriber in Task Space (unit: m) ***\n");
+                printf("*** Command from Subscriber in Joint-Space (unit: deg) ***\n");
                 if (event == 0)
                 {
                     printf("No Active!!!\n");
@@ -410,135 +426,90 @@ namespace  singlearm_controller
                     printf("tau: %0.3f", tau_d_.data(i));
                     printf("\n");
                 }
-                /*
-                printf("Forward Kinematics:\n");
-                for(int j=0; j<NumChain; j++)
-                {
-                    printf("x:%0.3lf, y:%0.3lf, z:%0.3lf, u:%0.2lf, v:%0.2lf, w:%0.2lf\n",
-                           ForwardPos[j](0), ForwardPos[j](1),ForwardPos[j](2), ForwardOri[j](0), ForwardOri[j](1), ForwardOri[j](2));
-                    printf("Axis x: %0.2lf, y: %0.2lf, z: %0.2lf, Angle: %0.3lf\n", ForwardAxis[j](0), ForwardAxis[j](1), ForwardAxis[j](2), ForwardAngle[j]);
-                }
-                printf("Right e(u):%0.3lf, e(v):%0.3lf, e(w):%0.3lf, e(x):%0.3lf, e(y):%0.3lf, e(z):%0.3lf\n",ex_(0), ex_(1), ex_(2), ex_(3), ex_(4), ex_(5));
-                printf("Left e(u):%0.3lf, e(v):%0.3lf, e(w):%0.3lf, e(x):%0.3lf, e(y):%0.3lf, e(z):%0.3lf\n",ex_(6), ex_(7), ex_(8), ex_(9), ex_(10), ex_(11));
-                */
                 count = 0;
             }
             count++;
         }
 
+    public:
+
+
     private:
-        // others
-        double t;
-        int ctr_obj_;
-        int ik_mode_;
-        int event;
-        double InitTime=0;
+      // others
+      ros::Time t;
+      int ctr_obj_;
+      int ik_mode_;
+      int event;
 
-        SE3 dSE3, eSE3, aSE3;
-        SO3 dSO3;
-        Vector3d eAxis;
-        double eAngle;
-        int EndNum=0;
+      //Joint handles
+      unsigned int n_joints_;
+      std::vector<std::string> joint_names_;
+      std::vector<hardware_interface::JointHandle> joints_;
 
-        //Joint handles
-        unsigned int n_joints_;
-        std::vector<std::string> joint_names_;
-        std::vector<hardware_interface::JointHandle> joints_;
-        std::vector<urdf::JointConstSharedPtr> joint_urdfs_;
+      realtime_tools::RealtimeBuffer<std::vector<double>> commands_buffer_;
+      ros::Subscriber sub_command_;
 
-        // kdl
-        KDL::Tree kdl_tree_;
-        KDL::Chain kdl_chain_;
+      boost::scoped_ptr<realtime_tools::RealtimePublisher<singlearm_controller::ControllerJointState>> controller_state_pub_;
 
-        // kdl M,C,G
-        KDL::JntSpaceInertiaMatrix M_; // intertia matrix
-        KDL::JntArray C_;              // coriolis
-        KDL::JntArray G_;              // gravity torque vector
-        KDL::Vector gravity_;
+      std::vector<urdf::JointConstSharedPtr> joint_urdfs_;
 
-        // kdl and Eigen Jacobian
-        KDL::Jacobian J_;
-        // KDL::Jacobian J_inv_;
-        // Eigen::Matrix<double, num_taskspace, num_taskspace> J_inv_;
-        Eigen::MatrixXd J_inv_;
-        Eigen::Matrix<double, num_taskspace, num_taskspace> J_transpose_;
+      // kdl
+      KDL::Tree kdl_tree_;
+      KDL::Chain kdl_chain_;
 
-        // kdl solver
-        boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> fk_pos_solver_; //Solver to compute the forward kinematics (position)
-        // boost::scoped_ptr<KDL::ChainFkSolverVel_recursive> fk_vel_solver_; //Solver to compute the forward kinematics (velocity)
-        boost::scoped_ptr<KDL::ChainJntToJacSolver> jnt_to_jac_solver_; //Solver to compute the jacobian
-        boost::scoped_ptr<KDL::ChainDynParam> id_solver_;               // Solver To compute the inverse dynamics
+      // kdl M,C,G
+      KDL::JntSpaceInertiaMatrix M_; // intertia matrix
+      KDL::JntArray C_;              // coriolis
+      KDL::JntArray G_;              // gravity torque vector
+      KDL::Vector gravity_;
 
-        VectorXd G;
+      // kdl and Eigen Jacobian
+      KDL::Jacobian J_;
+      KDL::Jacobian J_inv_;
 
-        Vector3d ForwardPos[2];
-        Vector3d ForwardOri[2];
-        int NumChain=2;
-        Vector3d ForwardAxis[2];
-        double ForwardAngle[2];
-
-        // kdl and Eigen Jacobian
-        Eigen::MatrixXd pInvJac;
-        Eigen::MatrixXd AJac;
-        Eigen::MatrixXd ScaledTransJac;
-
-        // Joint Space State
-        KDL::JntArray qd_;
-        KDL::JntArray qd_dot_;
-        KDL::JntArray qd_ddot_;
-        KDL::JntArray qd_old_;
-        KDL::JntArray q_;
-        KDL::JntArray qdot_;
-        KDL::JntArray e_, e_dot_, e_int_;
-
-        double q[15];
-        double qdot[15];
-        double torque[15];
-
-        // Task Space State
-        // ver. 01
-        KDL::Frame xd_; // x.p: frame position(3x1), x.m: frame orientation (3x3)
-        KDL::Frame x_;
-        KDL::Twist ex_temp_;
-
-        // KDL::Twist xd_dot_, xd_ddot_;
-        Eigen::Matrix<double, num_taskspace, 1> ex_;
-        Eigen::Matrix<double, num_taskspace, 1> dx;
-        Eigen::Matrix<double, num_taskspace, 1> dxdot;
-        Eigen::Matrix<double, num_taskspace, 1> xd_dot_;
-
-        // Input
-        KDL::JntArray x_cmd_;
-
-        // Torque
-        KDL::JntArray aux_d_;
-        KDL::JntArray comp_d_;
-        KDL::JntArray tau_d_;
-
-        // gains
-        KDL::JntArray Kp_, Ki_, Kd_;
-        double K_regulation_, K_tracking_;
-
-        // save the data
-        double SaveData_[SaveDataMax];
-
-        // ros subscriber
-        ros::Subscriber sub_x_cmd_;
-
-        // ros publisher
-        ros::Publisher pub_qd_, pub_q_, pub_e_;
-        ros::Publisher pub_xd_, pub_x_, pub_ex_;
-        ros::Publisher pub_SaveData_;
-
-        // ros message
-        std_msgs::Float64MultiArray msg_qd_, msg_q_, msg_e_;
-        std_msgs::Float64MultiArray msg_xd_, msg_x_, msg_ex_;
-        std_msgs::Float64MultiArray msg_SaveData_;
-
-        SerialManipulator *cManipulator;
-        HYUControl::Controller *Control;
+      // kdl solver
+      boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> fk_pos_solver_; //Solver to compute the forward kinematics (position)
+      // boost::scoped_ptr<KDL::ChainFkSolverVel_recursive> fk_vel_solver_; //Solver to compute the forward kinematics (velocity)
+      boost::scoped_ptr<KDL::ChainJntToJacSolver> jnt_to_jac_solver_; //Solver to compute the jacobian
+      boost::scoped_ptr<KDL::ChainDynParam> id_solver_;               // Solver To compute the inverse dynamics
 
 
+      // Joint Space State
+      KDL::JntArray qd_;
+      KDL::JntArray qd_dot_;
+      KDL::JntArray qd_ddot_;
+      KDL::JntArray qd_old_;
+      KDL::JntArray q_;
+      KDL::JntArray qdot_;
+      KDL::JntArray e_, e_dot_, e_int_;
+
+      // Task Space State
+      // ver. 01
+      KDL::Frame xd_; // x.p: frame position(3x1), x.m: frame orientation (3x3)
+      KDL::Frame x_;
+      KDL::Twist ex_temp_;
+
+      // KDL::Twist xd_dot_, xd_ddot_;
+      Eigen::Matrix<double, num_taskspace, 1> ex_;
+      Eigen::Matrix<double, num_taskspace, 1> dx;
+      Eigen::Matrix<double, num_taskspace, 1> dxdot;
+      Eigen::Matrix<double, num_taskspace, 1> xd_dot_;
+
+      // Input
+      KDL::JntArray x_cmd_;
+
+      // Torque
+      KDL::JntArray aux_d_;
+      KDL::JntArray comp_d_;
+      KDL::JntArray tau_d_;
+
+      // gains
+      KDL::JntArray Kp_, Ki_, Kd_;
+      double K_regulation_, K_tracking_;
+
+
+      SerialManipulator *cManipulator;
+      HYUControl::Controller *Control;
     };
 }
 
