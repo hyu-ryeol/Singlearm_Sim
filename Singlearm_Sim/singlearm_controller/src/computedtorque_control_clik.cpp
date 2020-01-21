@@ -322,7 +322,6 @@ namespace  singlearm_controller
         {
             // ********* 0. Get states from gazebo *********
             // 0.1 sampling time
-            double dt = period.toSec();
             t = t + 0.001;
 
             // 0.2 joint state
@@ -335,7 +334,7 @@ namespace  singlearm_controller
 
 
             qd_.data.setZero();
-            qd_.data(1) = M_PI/2;
+            qd_.data(1) = -M_PI/4;
             qd_dot_.data.setZero();
             qd_ddot_.data.setZero();
 

@@ -2,4 +2,6 @@
     <include file="$(find singlearm_gazebo)/launch/singlearm_empty_world.launch"/>
 
     <include file="$(find singlearm_control)/launch/computedtorque_control_clik.launch" />
+
+    <include file="$(find singlearm_description)/launch/singlearm_rviz.launch"/>
 </launch>
