@@ -5,7 +5,7 @@
 
 	<xacro:include filename="$(find singlearm_description)/urdf/robot_parameter.xacro" />
 
-	<xacro:include filename="$(find singlearm_description)/urdf/singlearm.gazebo" />
+	<xacro:include filename="$(find singlearm_description)/urdf/singlearm.gazebo.xacro" />
 
 	<!-- Base parts -->
 	<link name = "world"/>
@@ -230,5 +230,6 @@
 			mesh_file="package://singlearm_description/meshes/L6.STL"
 			mesh_scale="0.001 0.001 0.001"
 	/>
+
 	
 </robot>

@@ -248,13 +248,14 @@ namespace  singlearm_controller
 
             // 5.1 KDL Vector 초기화 (사이즈 정의 및 값 0)
             tau_d_.data = Eigen::VectorXd::Zero(n_joints_);
+            JointTorqueSensing.data = Eigen::VectorXd::Zero(6);
 
-            qd_.data = Eigen::VectorXd::Zero(n_joints_);
-            qd_dot_.data = Eigen::VectorXd::Zero(n_joints_);
-            qd_ddot_.data = Eigen::VectorXd::Zero(n_joints_);
+            dq_.data = Eigen::VectorXd::Zero(n_joints_);
+            dq_dot_.data = Eigen::VectorXd::Zero(n_joints_);
+            dq_ddot_.data = Eigen::VectorXd::Zero(n_joints_);
 
             q_.data = Eigen::VectorXd::Zero(n_joints_);
-            qdot_.data = Eigen::VectorXd::Zero(n_joints_);
+            q_dot_.data = Eigen::VectorXd::Zero(n_joints_);
 
             e_.data = Eigen::VectorXd::Zero(n_joints_);
             e_dot_.data = Eigen::VectorXd::Zero(n_joints_);
@@ -279,7 +280,6 @@ namespace  singlearm_controller
               controller_state_pub_->msg_.dqdot.push_back(0.0);
               controller_state_pub_->msg_.ctrl_input.push_back(0.0);
             }
-
 
             // 6.2 subsriber
             commands_buffer_.writeFromNonRT(std::vector<double>(n_joints_, 0.0));
@@ -313,9 +313,9 @@ namespace  singlearm_controller
 
           Control->SetPIDGain(Kp_.data, Kd_.data, Ki_.data);
 
-          qd_.data.setZero();
-          qd_dot_.data.setZero();
-          qd_ddot_.data.setZero();
+          dq_.data.setZero();
+          dq_dot_.data.setZero();
+          dq_ddot_.data.setZero();
 
           ROS_INFO("Starting Computed Torque Controller with Closed-Loop Inverse Kinematics");
         }
@@ -332,21 +332,22 @@ namespace  singlearm_controller
             for (int i = 0; i < n_joints_; i++)
             {
                 q_.data(i) = joints_[i].getPosition();
-                qdot_.data(i) = joints_[i].getVelocity();
-                //torque_.data(i) = joints_[i].getEffort();
-                qd_.data(i) = commands[i]*D2R;
+                q_dot_.data(i) = joints_[i].getVelocity();
+                dq_.data(i) = commands[i]*D2R;
             }
 
-            e_.data = qd_.data - q_.data;
-            e_dot_.data = qd_dot_.data - qdot_.data;
+            e_.data = dq_.data - q_.data;
+            e_dot_.data = dq_dot_.data - q_dot_.data;
 
             // *** 3.2 Compute model(M,C,G) ***
             id_solver_->JntToMass(q_, M_);
-            id_solver_->JntToCoriolis(q_, qdot_, C_);
+            id_solver_->JntToCoriolis(q_, q_dot_, C_);
             id_solver_->JntToGravity(q_, G_);
 
+            jnt_to_jac_solver_->JntToJac(q_, J_);
+
             // *** 3.3 Apply Torque Command to Actuator ***
-            aux_d_.data = M_.data * (qd_ddot_.data + Kp_.data.cwiseProduct(e_.data) + Kd_.data.cwiseProduct(e_dot_.data));
+            aux_d_.data = M_.data * dq_ddot_.data + Kp_.data.cwiseProduct(e_.data) + Kd_.data.cwiseProduct(e_dot_.data);
             comp_d_.data = C_.data + G_.data;
             tau_d_.data = aux_d_.data + comp_d_.data;
 
@@ -356,10 +357,10 @@ namespace  singlearm_controller
                 joints_[i].setCommand(tau_d_(i));
             }
 
-            // ********* 4. data 저장 *********
+            cal_variable();
+
             publish_data();
 
-            // ********* 5. state 출력 *********
             print_state();
         }
 
@@ -368,6 +369,12 @@ namespace  singlearm_controller
             delete Control;
             delete cManipulator;
         }
+
+        void cal_variable()
+        {
+
+
+        };
 
         void publish_data()
         {
@@ -380,9 +387,9 @@ namespace  singlearm_controller
               for(int i=0; i<n_joints_; i++)
               {
                 controller_state_pub_->msg_.q[i] = q_.data(i);
-                controller_state_pub_->msg_.dq[i] = qd_.data(i);
-                controller_state_pub_->msg_.qdot[i] = qdot_.data(i);
-                controller_state_pub_->msg_.dqdot[i] = qd_dot_.data(i);
+                controller_state_pub_->msg_.dq[i] = dq_.data(i);
+                controller_state_pub_->msg_.qdot[i] = q_dot_.data(i);
+                controller_state_pub_->msg_.dqdot[i] = dq_dot_.data(i);
                 controller_state_pub_->msg_.ctrl_input[i] = tau_d_.data(i);
               }
               controller_state_pub_->unlockAndPublish();
@@ -418,21 +425,19 @@ namespace  singlearm_controller
                 for(int i=0; i < n_joints_; i++)
                 {
                     printf("Joint ID:%d \t", i+1);
-                    printf("Kp;%0.3lf, Kd:%0.3lf, Kinf:%0.3lf, ", Kp_.data(i), Kd_.data(i), Ki_.data(i));
+                    printf("Kp;%0.3lf, Kd:%0.3lf,  ", Kp_.data(i), Kd_.data(i));
                     printf("q: %0.3lf, ", q_.data(i) * R2D);
-                    printf("dq: %0.3lf, ", qd_.data(i) * R2D);
-                    printf("qdot: %0.3lf, ", qdot_.data(i) * R2D);
-                    printf("dqdot: %0.3lf, ", qd_dot_.data(i) * R2D);
-                    printf("tau: %0.3f", tau_d_.data(i));
+                    printf("dq: %0.3lf, ", dq_.data(i) * R2D);
+                    printf("qdot: %0.3lf, ", q_dot_.data(i) * R2D);
+                    printf("dqdot: %0.3lf, ", dq_dot_.data(i) * R2D);
+                    printf("tau: %0.3f,  ", tau_d_.data(i));
+                    printf("sensor_tau: %0.3f", JointTorqueSensing.data(i));
                     printf("\n");
                 }
                 count = 0;
             }
             count++;
         }
-
-    public:
-
 
     private:
       // others
@@ -465,7 +470,6 @@ namespace  singlearm_controller
 
       // kdl and Eigen Jacobian
       KDL::Jacobian J_;
-      KDL::Jacobian J_inv_;
 
       // kdl solver
       boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> fk_pos_solver_; //Solver to compute the forward kinematics (position)
@@ -475,28 +479,10 @@ namespace  singlearm_controller
 
 
       // Joint Space State
-      KDL::JntArray qd_;
-      KDL::JntArray qd_dot_;
-      KDL::JntArray qd_ddot_;
-      KDL::JntArray qd_old_;
-      KDL::JntArray q_;
-      KDL::JntArray qdot_;
-      KDL::JntArray e_, e_dot_, e_int_;
-
-      // Task Space State
-      // ver. 01
-      KDL::Frame xd_; // x.p: frame position(3x1), x.m: frame orientation (3x3)
-      KDL::Frame x_;
-      KDL::Twist ex_temp_;
-
-      // KDL::Twist xd_dot_, xd_ddot_;
-      Eigen::Matrix<double, num_taskspace, 1> ex_;
-      Eigen::Matrix<double, num_taskspace, 1> dx;
-      Eigen::Matrix<double, num_taskspace, 1> dxdot;
-      Eigen::Matrix<double, num_taskspace, 1> xd_dot_;
-
-      // Input
-      KDL::JntArray x_cmd_;
+      KDL::JntArray dq_, dq_dot_, dq_ddot_;
+      KDL::JntArray q_, q_dot_;
+      KDL::JntArray e_, e_dot_;
+      KDL::JntArray JointTorqueSensing;
 
       // Torque
       KDL::JntArray aux_d_;

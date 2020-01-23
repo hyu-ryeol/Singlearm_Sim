@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
         dynamic_reconfigure
         realtime_tools
         urdf
+        gazebo_ros
 )
 
 ## System dependencies are found with CMake's conventions
@@ -22,6 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(Eigen3 3.0 REQUIRED NO_MODULES)
 
 find_package(OpenMP)
+
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
@@ -109,7 +111,7 @@ find_package(OpenMP)
 catkin_package(
 #  INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS angles control_msgs controller_interface kdl_parser dynamic_reconfigure realtime_tools urdf
+  CATKIN_DEPENDS angles control_msgs controller_interface kdl_parser dynamic_reconfigure realtime_tools urdf gazebo_ros
 )
 
 ###########
@@ -127,6 +129,7 @@ include_directories(
 ## Declare a C++ library
  add_library(${PROJECT_NAME}
          src/computedtorque_control_clik.cpp
+         src/variable_impedance_controller.cpp
          include/Controller.cpp
          include/LieOperator.cpp
          include/LieDynamics.cpp
@@ -134,7 +137,7 @@ include_directories(
          include/PropertyDefinition.cpp
          include/SerialManipulator.cpp
          include/Trajectory.cpp
- )
+         )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -157,7 +160,7 @@ add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
- target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES} )
+ target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES})
 if(NOT TARGET OpenMP::OpenMP_CXX)
 
  find_package(Threads REQUIRED)

@@ -9,4 +9,6 @@
             respawn="false" output="screen">
         <remap from="/joint_states" to="/singlearm/joint_states"/>
     </node>
+
+    <node name="singlearm_rqt" pkg="rqt_gui" type="rqt_gui" respawn="false" output="screen" />
 </launch>
