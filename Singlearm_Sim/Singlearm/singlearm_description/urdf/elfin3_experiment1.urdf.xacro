@@ -397,12 +397,13 @@
       </geometry>
     </collision>
   </link>
+
   <joint
     name="elfin_joint6"
     type="revolute">
     <origin
       xyz="0 -0.1065 0"
-      rpy="${-PI} 0 ${-PI}" />
+      rpy="${PI} 0 ${PI}" />
     <parent
       link="elfin_link5" />
     <child
@@ -426,14 +427,12 @@
         <cylinder length="0.02" radius="0.04"/>
       </geometry>
     </collision>
-
     <visual>
       <origin xyz="0 0 0" rpy="${PI/2} 0 0" />
       <geometry>
         <cylinder length="0.02" radius="0.04"/>
       </geometry>
     </visual>
-
     <inertial>
       <mass value="0.01" />
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -460,25 +459,33 @@
         <cylinder length="0.08" radius="0.01"/>
       </geometry>
     </collision>
-
     <visual>
       <origin xyz="0 0 0" rpy="${PI/2} 0 0" />
       <geometry>
         <cylinder length="0.08" radius="0.01"/>
       </geometry>
     </visual>
-
     <inertial>
       <mass value="0.01" />
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01" />
+      <origin
+              xyz="0 0 0"
+              rpy="0 0 0"/>
+      <inertia
+              ixx="0.01"
+              ixy="0"
+              ixz="0"
+              iyy="0.01"
+              iyz="0"
+              izz="0.01" />
     </inertial>
   </link>
 
   <joint name="tool_joint" type="fixed">
     <parent link="elfin_ft_sensor_link"/>
     <child link="elfin_tool"/>
-    <origin xyz="0 -0.05 0" rpy="0 0 0" />
+    <origin
+            xyz="0 -0.05 0"
+            rpy="0 0 0" />
   </joint>
 
   <link name="elfin_tool_ball">
@@ -490,7 +497,9 @@
     </collision>
 
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin
+              xyz="0 0 0"
+              rpy="0 0 0" />
       <geometry>
         <sphere radius="0.02"/>
       </geometry>
@@ -498,15 +507,25 @@
 
     <inertial>
       <mass value="0.01" />
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01" />
+      <origin
+              xyz="0 0 0"
+              rpy="0 0 0"/>
+      <inertia
+              ixx="0.01"
+              ixy="0"
+              ixz="0"
+              iyy="0.01"
+              iyz="0"
+              izz="0.01" />
     </inertial>
   </link>
 
   <joint name="tool_ball_joint" type="fixed">
     <parent link="elfin_tool"/>
     <child link="elfin_tool_ball"/>
-    <origin xyz="0 -0.04 0" rpy="0 0 0" />
+    <origin
+            xyz="0 -0.04 0"
+            rpy="0 0 0" />
   </joint>  
 
 </robot> 

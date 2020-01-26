@@ -10,6 +10,7 @@
 #include <angles/angles.h>
 #include <geometry_msgs/WrenchStamped.h>
 #include "singlearm_controller/ControllerJointState.h"
+#include "singlearm_controller/ControllerMatlabState.h"
 
 #include <urdf/model.h>
 
@@ -51,6 +52,7 @@ public:
       ROS_ERROR("Could not find joint name");
       return false;
     }
+
     n_joints_ = joint_names_.size();
 
     if(n_joints_ == 0)
@@ -159,6 +161,8 @@ public:
 
     Kp_.resize(n_joints_);
     Kd_.resize(n_joints_);
+    Kp_dot_.resize(n_joints_);
+    Kp_dot_.setZero();
 
     experiment_mode_ = 0;
 
@@ -194,6 +198,18 @@ public:
       return false;
     }
 
+    if (!n.getParam("/singlearm/variable_impedance_controller/aic/alpha", alpha))
+    {
+      ROS_ERROR("Cannot find alpha");
+      return false;
+    }
+
+    if (!n.getParam("/singlearm/variable_impedance_controller/aic/epsilon", epsilon))
+    {
+      ROS_ERROR("Cannot find alpha");
+      return false;
+    }
+
     J_.resize(kdl_chain_.getNrOfJoints());
     M_mat.resize(kdl_chain_.getNrOfJoints());
     M_mat_p.resize(kdl_chain_.getNrOfJoints());
@@ -201,21 +217,14 @@ public:
     C_mat.resize(kdl_chain_.getNrOfJoints());
     G_mat.resize(kdl_chain_.getNrOfJoints());
 
-    ROS_INFO("Ready for Publisher");
     // publisher
-    controller_state_pub_.reset(new realtime_tools::RealtimePublisher<singlearm_controller::ControllerJointState>(n, "state", 1));
+    controller_state_pub_.reset(new realtime_tools::RealtimePublisher<singlearm_controller::ControllerMatlabState>(n, "state", 1));
     controller_state_pub_->msg_.header.stamp = ros::Time::now();
-    for (size_t i=0; i<n_joints_; i++)
+    for(size_t i=0; i<6*(n_joints_-1)+4; i++)
     {
-      controller_state_pub_->msg_.name.push_back(joint_names_[i]);
-      controller_state_pub_->msg_.q.push_back(0.0);
-      controller_state_pub_->msg_.dq.push_back(0.0);
-      controller_state_pub_->msg_.qdot.push_back(0.0);
-      controller_state_pub_->msg_.dqdot.push_back(0.0);
-      controller_state_pub_->msg_.ctrl_input.push_back(0.0);
+      controller_state_pub_->msg_.data.push_back(0.0);
     }
 
-    ROS_INFO("Ready for Subscriber");
     // subsriber
     commands_buffer_.writeFromNonRT(std::vector<double>(n_joints_, 0.0));
     sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command",1, &VariableImpedanceController::commandCB,this);
@@ -290,39 +299,23 @@ public:
       q_dot_(i) = joints_[i].getVelocity();
     }
 
-    if(total_time_ < 5.0)
+    if(total_time_ < 4.0)
     {
       task_init();
     }
-    else if(total_time_ >= 5.0 && total_time_ < 6.0)
+    else if(total_time_ >= 4.0 && total_time_ < 5.0)
     {
       task_via();
     }
-    else if(total_time_ >= 6.0 && total_time_ < 16.0)
+    else if(total_time_ >= 5.0 && total_time_ < 12.0)
     {
-      task_ready();
+      task_pos1();
     }
-    else if (total_time_ >= 16.0 && total_time_ < 17.0)
+    else if (total_time_ >= 12.0 && total_time_ < 19.0)
     {
-      task_via();
+      task_pos2();
     }
-    else if (total_time_ >= 17.0 && total_time_ < 27.0)
-    {
-      task_freespace();
-    }
-    else if (total_time_ >= 27.0 && total_time_ < 28.0)
-    {
-      task_via();
-    }
-    else if (total_time_ >= 28.0 && total_time_ < 48.0)
-    {
-      task_contactspace();
-    }
-    else if (total_time_ >= 48.0 && total_time_ < 49.0)
-    {
-      task_via();
-    }
-    else if (total_time_ >= 49.0 && total_time_ < 59.0)
+    else
     {
       task_homming();
     }
@@ -332,12 +325,16 @@ public:
     id_solver_->JntToGravity(q_, G_mat);
     jnt_to_jac_solver_->JntToJac(q_, J_);
 
+    M_mat_dot.data = (M_mat.data - M_mat_p.data)/dt_;
+
     e_.data = dq_.data - q_.data;
     e_dot_.data = dq_dot_.data - q_dot_.data;
 
     d_.data = J_.data.transpose()*d_Cart_.data;
 
-    tau_cmd_.data = M_mat.data*dq_ddot_.data + Kp_.data.cwiseProduct(e_.data) + Kd_.data.cwiseProduct(e_dot_.data) + C_mat.data + G_mat.data;
+    GainUpdate();
+
+    tau_cmd_.data = M_mat.data*dq_ddot_.data + Kp_.cwiseProduct(e_.data) + Kd_.cwiseProduct(e_dot_.data) + C_mat.data + G_mat.data;
 
     for(size_t i=0; i<n_joints_; i++)
     {
@@ -388,9 +385,13 @@ public:
     {
       if (i == 2 || i == 4)
       {
-        dq_(i) = trajectory_generator_pos(q_init_(i), PI/2.0, 10.0);
-        dq_dot_(i) = trajectory_generator_vel(q_init_(i), PI/2.0, 10.0);
-        dq_ddot_(i) = trajectory_generator_acc(q_init_(i), PI/2.0, 10.0);
+        //dq_(i) = trajectory_generator_pos(q_init_(i), PI/2.0, 10.0);
+        //dq_dot_(i) = trajectory_generator_vel(q_init_(i), PI/2.0, 10.0);
+        //dq_ddot_(i) = trajectory_generator_acc(q_init_(i), PI/2.0, 10.0);
+
+        dq_(i) = PI/2.0;
+        dq_dot_(i) = 0.0;
+        dq_ddot_(i) = 0.0;
       }
       else
       {
@@ -471,13 +472,41 @@ public:
     dq_end_ = dq_;
   }
 
+  void task_pos1()
+  {
+    for (size_t i=0; i<n_joints_; i++)
+    {
+      dq_(i) = M_PI_4;
+      dq_dot_(i) = 0.0;
+      dq_ddot_(i) = 0.0;
+    }
+
+    dq_end_ = dq_;
+  }
+
+  void task_pos2()
+  {
+    for (size_t i=0; i<n_joints_; i++)
+    {
+      dq_(i) = -M_PI_4;
+      dq_dot_(i) = 0.0;
+      dq_ddot_(i) = 0.0;
+    }
+
+    dq_end_ = dq_;
+  }
+
   void task_homming()
   {
     for (size_t i = 0; i < n_joints_; i++)
     {
-      dq_(i) = trajectory_generator_pos(q_init_(i), 0.0, 10.0);
-      dq_dot_(i) = trajectory_generator_vel(q_init_(i), 0.0, 10.0);
-      dq_ddot_(i) = trajectory_generator_acc(q_init_(i), 0.0, 10.0);
+      //dq_(i) = trajectory_generator_pos(q_init_(i), 0.0, 10.0);
+      //dq_dot_(i) = trajectory_generator_vel(q_init_(i), 0.0, 10.0);
+      //dq_ddot_(i) = trajectory_generator_acc(q_init_(i), 0.0, 10.0);
+
+      dq_(i) = 0.0;
+      dq_dot_(i) = 0.0;
+      dq_ddot_(i) = 0.0;
     }
 
     dq_end_.data = dq_.data;
@@ -513,32 +542,43 @@ public:
     return 6.0*dA3*time_ + 12.0*dA4*time_*time_ + 20.0*dA5*time_*time_*time_;
   }
 
+  void GainUpdate()
+  {
+    if(e_dot_.data.norm() >= epsilon)
+    {
+      Kp_dot_ = (2.0/(alpha*e_dot_.data.norm()*e_dot_.data.norm())*e_dot_.data*d_.data.transpose() + (1.0/alpha)*M_mat_dot.data).diagonal();
+    } else{
+      Kp_dot_.setZero();
+    }
+    Kp_ += Kp_dot_*dt_;
+  }
+
   void StabilityFactor()
   {
     lyapunov_ = 0.5 * e_dot_.data.transpose() * M_mat.data * e_dot_.data;
-    lyapunov_ += (alpha / 2.0) * e_.data.transpose() * Kp_.data.asDiagonal() * e_.data;
+    lyapunov_ += (alpha / 2.0) * e_.data.transpose() * Kp_.asDiagonal() * e_.data;
 
-    M_mat_dot.data = (M_mat.data - M_mat_p.data)/dt_;
 
-    //lyapunov_dot[0] = 0.5*e_dot_.data.transpose()*M_mat_dot.data*e_dot_.data;
-    //lyapunov_dot[0] += e_dot_.data.transpose()*M_mat.data*e_dot_.data;
-    //lyapunov_dot[0] += (alpha/2.0)*e_.data.transpose()*Kp_dot_.data.asDiagonal()*e_.data;
-    //lyapunov_dot[0] += alpha*e_.data.transpose()*Kp_.data.asDiagonal()*e_dot_.data;
 
-    //Eigen::MatrixXd tmp;
-    //tmp = ((1-alpha)/2.0)*Kp_.data.asDiagonal();
-    //tmp -= (alpha/2.0)*Kp_dot_.data.asDiagonal();
+    lyapunov_dot[0] = 0.5*e_dot_.data.transpose()*M_mat_dot.data*e_dot_.data;
+    lyapunov_dot[0] += e_dot_.data.transpose()*M_mat.data*e_dot_.data;
+    lyapunov_dot[0] += (alpha/2.0)*e_.data.transpose()*Kp_dot_.asDiagonal()*e_.data;
+    lyapunov_dot[0] += alpha*e_.data.transpose()*Kp_.asDiagonal()*e_dot_.data;
 
-    //lyapunov_dot[1] = -e_.data.transpose()*tmp*e_.data;
+    Eigen::MatrixXd tmp;
+    tmp = ((1-alpha)/2.0)*Kp_.asDiagonal();
+    tmp -= (alpha/2.0)*Kp_dot_.asDiagonal();
 
-    //tmp = ((1-alpha)/2.0)*Kp_.data.asDiagonal();
-    //tmp += Kd_.data.asDiagonal();
+    lyapunov_dot[1] = -e_.data.transpose()*tmp*e_.data;
 
-    //SufficientCondition_ = tmp.norm();
+    tmp = ((1-alpha)/2.0)*Kp_.asDiagonal();
+    tmp += Kd_.asDiagonal();
 
-    //tmp -= 0.5*M_mat_dot.data;
+    SufficientCondition_ = tmp.norm();
 
-    //SufficientCondition_ -= (0.5*M_mat_dot.data).norm();
+    tmp -= 0.5*M_mat_dot.data;
+
+    SufficientCondition_ -= (0.5*M_mat_dot.data).norm();
 
     //lyapunov_dot[1] -= 0.5*e_dot_.data.transpose()*tmp*e_dot_.data;
     //lyapunov_dot[1] += 0.5*d_.data.transpose()*tmp.inverse()*d_.data;
@@ -552,14 +592,19 @@ public:
       if (controller_state_pub_->trylock())
       {
         controller_state_pub_->msg_.header.stamp = t;
-        for(int i=0; i<n_joints_; i++)
+        for(int i=0; i<(n_joints_-1); i++)
         {
-          controller_state_pub_->msg_.q[i] = q_.data(i);
-          controller_state_pub_->msg_.dq[i] = dq_.data(i);
-          controller_state_pub_->msg_.qdot[i] = q_dot_.data(i);
-          controller_state_pub_->msg_.dqdot[i] = dq_dot_.data(i);
-          controller_state_pub_->msg_.ctrl_input[i] = tau_cmd_.data(i);
+          controller_state_pub_->msg_.data[6*i] = e_.data(i);
+          controller_state_pub_->msg_.data[6*i+1] = e_dot_.data(i);
+          controller_state_pub_->msg_.data[6*i+2] = tau_cmd_.data(i);
+          controller_state_pub_->msg_.data[6*i+3] = Kp_(i);
+          controller_state_pub_->msg_.data[6*i+4] = Kp_dot_(i);
+          controller_state_pub_->msg_.data[6*i+5] = d_.data(i);
         }
+        controller_state_pub_->msg_.data[36] = total_time_;
+        controller_state_pub_->msg_.data[37] = lyapunov_;
+        controller_state_pub_->msg_.data[38] = lyapunov_dot[0];
+        controller_state_pub_->msg_.data[39] = SufficientCondition_;
         controller_state_pub_->unlockAndPublish();
       }
       loop_count_=0;
@@ -581,8 +626,8 @@ public:
 
       for(int i=0; i < n_joints_; i++)
       {
-        printf("Joint ID:%d \t", i+1);
-        printf("Kp;%0.3lf, Kd:%0.3lf,  ", Kp_.data(i), Kd_.data(i));
+        printf("Joint ID:%d  ", i+1);
+        printf("Kp;%0.3lf, Kd:%0.3lf,  ", Kp_(i), Kd_(i));
         printf("q: %0.3lf, ", q_.data(i) * R2D);
         printf("dq: %0.3lf, ", dq_.data(i) * R2D);
         printf("qdot: %0.3lf, ", q_dot_.data(i) * R2D);
@@ -592,8 +637,9 @@ public:
       }
       printf("sensor_ft >> x:%0.3f, y:%0.3f, z:%0.3f, u:%0.3f, v:%0.3f, w:%0.3f\n\n",f_cur_.force.x(), f_cur_.force.y(), f_cur_.force.z(), f_cur_.torque.x(), f_cur_.torque.y(), f_cur_.torque.z() );
       printf("Check Stability Factors:\n");
-      printf("Lyapunov:%0.1f, Lyapunov_dot:%0.1f, %0.1f\n", lyapunov_, lyapunov_dot[0], lyapunov_dot[1]);
-      printf("SufficientCond:%0.1f\n\n", SufficientCondition_);
+      printf("Lyapunov:%0.3lf, Lyapunov_dot:%0.3lf, %0.3lf  ", lyapunov_, lyapunov_dot[0], lyapunov_dot[1]);
+      printf("SufficientCond:%0.3lf\n", SufficientCondition_);
+      printf("Alpha:%0.2lf, Epsilon:%0.2lf\n\n", alpha, epsilon);
       count = 0;
     }
     count++;
@@ -611,7 +657,7 @@ private:
   ros::Subscriber sub_command_;
   ros::Subscriber sub_forcetorque_sensor_;
 
-  boost::scoped_ptr<realtime_tools::RealtimePublisher<singlearm_controller::ControllerJointState>> controller_state_pub_;
+  boost::scoped_ptr<realtime_tools::RealtimePublisher<singlearm_controller::ControllerMatlabState>> controller_state_pub_;
 
   std::vector<urdf::JointConstSharedPtr> joint_urdfs_;
 
@@ -631,8 +677,8 @@ private:
   KDL::Jacobian J_;
 
   // tdc gain
-  KDL::JntArray Kp_, Kd_;
-  KDL::JntArray Kp_dot_;
+  Eigen::VectorXd Kp_, Kd_;
+  Eigen::VectorXd Kp_dot_;
 
   // cmd, state
   KDL::JntArray q_init_;
@@ -652,7 +698,7 @@ private:
   double lyapunov_;
   double lyapunov_dot[2];
   double SufficientCondition_;
-  double alpha;
+  double alpha, epsilon;
 
   int experiment_mode_;
 };

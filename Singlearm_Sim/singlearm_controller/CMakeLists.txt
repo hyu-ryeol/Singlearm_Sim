@@ -57,6 +57,7 @@ find_package(OpenMP)
  add_message_files(
          FILES
          ControllerJointState.msg
+         ControllerMatlabState.msg
  )
 
 ## Generate services in the 'srv' folder
