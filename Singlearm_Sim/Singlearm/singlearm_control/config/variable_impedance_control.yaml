@@ -18,17 +18,17 @@ singlearm:
       tip_link: elfin_tool_ball
       
       joint1:
-        tdc: {p: 45.0, d: 0.8}
+        tdc: {p: 80.0, d: 0.8}
       joint2: 
-        tdc: {p: 45.0, d: 0.8}
+        tdc: {p: 80.0, d: 0.8}
       joint3: 
-        tdc: {p: 45.0, d: 0.8}
+        tdc: {p: 80.0, d: 0.8}
       joint4: 
-        tdc: {p: 45.0, d: 0.8}
+        tdc: {p: 80.0, d: 0.8}
       joint5: 
-        tdc: {p: 45.0, d: 0.8}
+        tdc: {p: 80.0, d: 0.8}
       joint6: 
-        tdc: {p: 45.0, d: 0.8}
+        tdc: {p: 80.0, d: 0.8}
       joint7:
         tdc: {p: 0.0, d: 0.0}
 

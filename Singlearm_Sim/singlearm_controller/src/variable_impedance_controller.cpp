@@ -11,7 +11,7 @@
 #include <geometry_msgs/WrenchStamped.h>
 #include "singlearm_controller/ControllerJointState.h"
 #include "singlearm_controller/ControllerMatlabState.h"
-
+#include <Eigen/Dense>
 #include <urdf/model.h>
 
 #include <kdl/tree.hpp>
@@ -307,11 +307,11 @@ public:
     {
       task_via();
     }
-    else if(total_time_ >= 5.0 && total_time_ < 12.0)
+    else if(total_time_ >= 5.0 && total_time_ < 10.0)
     {
       task_pos1();
     }
-    else if (total_time_ >= 12.0 && total_time_ < 19.0)
+    else if (total_time_ >= 10.0 && total_time_ < 15.0)
     {
       task_pos2();
     }
@@ -558,14 +558,14 @@ public:
     lyapunov_ = 0.5 * e_dot_.data.transpose() * M_mat.data * e_dot_.data;
     lyapunov_ += (alpha / 2.0) * e_.data.transpose() * Kp_.asDiagonal() * e_.data;
 
-
+    lyapunov_dot[1] = (lyapunov_ - lyapunov_p_)/dt_;
 
     lyapunov_dot[0] = 0.5*e_dot_.data.transpose()*M_mat_dot.data*e_dot_.data;
-    lyapunov_dot[0] += e_dot_.data.transpose()*M_mat.data*e_dot_.data;
+    lyapunov_dot[0] -= e_dot_.data.transpose()*(Kd_.asDiagonal()*e_dot_.data + Kp_.asDiagonal()*e_.data - d_.data);
     lyapunov_dot[0] += (alpha/2.0)*e_.data.transpose()*Kp_dot_.asDiagonal()*e_.data;
     lyapunov_dot[0] += alpha*e_.data.transpose()*Kp_.asDiagonal()*e_dot_.data;
 
-    Eigen::MatrixXd tmp;
+    Eigen::MatrixXd tmp(7,7);
     tmp = ((1-alpha)/2.0)*Kp_.asDiagonal();
     tmp -= (alpha/2.0)*Kp_dot_.asDiagonal();
 
@@ -579,6 +579,8 @@ public:
     tmp -= 0.5*M_mat_dot.data;
 
     SufficientCondition_ -= (0.5*M_mat_dot.data).norm();
+
+    lyapunov_p_ = lyapunov_;
 
     //lyapunov_dot[1] -= 0.5*e_dot_.data.transpose()*tmp*e_dot_.data;
     //lyapunov_dot[1] += 0.5*d_.data.transpose()*tmp.inverse()*d_.data;
@@ -603,7 +605,7 @@ public:
         }
         controller_state_pub_->msg_.data[36] = total_time_;
         controller_state_pub_->msg_.data[37] = lyapunov_;
-        controller_state_pub_->msg_.data[38] = lyapunov_dot[0];
+        controller_state_pub_->msg_.data[38] = lyapunov_dot[1];
         controller_state_pub_->msg_.data[39] = SufficientCondition_;
         controller_state_pub_->unlockAndPublish();
       }
@@ -695,7 +697,7 @@ private:
   double time_;
   double total_time_;
 
-  double lyapunov_;
+  double lyapunov_, lyapunov_p_;
   double lyapunov_dot[2];
   double SufficientCondition_;
   double alpha, epsilon;
