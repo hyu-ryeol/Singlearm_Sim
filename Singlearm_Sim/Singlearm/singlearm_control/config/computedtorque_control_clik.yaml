@@ -18,7 +18,7 @@ singlearm:
       joint1:
         pid: {p: 55.0, i: 11.55, d: 3}
       joint2:
-        pid: {p: 40.0, i: 11.65, d: 3}
+        pid: {p: 50.0, i: 11.65, d: 3}
       joint3:
         pid: {p: 40.0, i: 11.25, d: 2}
       joint4:
