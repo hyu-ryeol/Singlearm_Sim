@@ -1,10 +1,14 @@
 <?xml version="1.0"?>
 <launch>
     <rosparam file="$(find singlearm_control)/config/computedtorque_control_clik.yaml" command="load"/>
- 
+
     <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
           output="screen" ns="/singlearm" args="joint_state_controller computedtorque_control_clik"/>
 
-    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" ns="/singlearm"/>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" ns="/singlearm"
+            respawn="false" output="screen">
+        <remap from="/joint_states" to="/singlearm/joint_states"/>
+    </node>
 
+    <node name="singlearm_rqt" pkg="rqt_gui" type="rqt_gui" respawn="false" output="screen" />
 </launch>

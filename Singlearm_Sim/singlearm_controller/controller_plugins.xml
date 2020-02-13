@@ -8,4 +8,11 @@
         </description>
     </class>
 
+    <class name="singlearm_controller/VariableImpedanceController"
+           type="singlearm_controller::VariableImpedanceController"
+           base_class_type="controller_interface::ControllerBase">
+        <description>
+            Variable Impedance Controller
+        </description>
+    </class>
 </library>
