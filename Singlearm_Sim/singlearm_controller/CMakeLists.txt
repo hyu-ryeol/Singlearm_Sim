@@ -16,10 +16,12 @@ find_package(catkin REQUIRED COMPONENTS
         realtime_tools
         urdf
         gazebo_ros
+        message_generation
+        sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system)
 find_package(Eigen3 3.0 REQUIRED NO_MODULES)
 
 find_package(OpenMP)

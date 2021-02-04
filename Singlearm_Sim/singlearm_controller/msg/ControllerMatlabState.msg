@@ -1,2 +1,12 @@
 std_msgs/Header header
-float64[] data
+string[] name
+float64[] e
+float64[] edot
+float64[] torque
+float64[] Kp
+float64[] Kpdot
+float64[] Kd
+float64 time
+float64 lyapunov
+float64 lyapunov_dot
+float64 SufficientCondition

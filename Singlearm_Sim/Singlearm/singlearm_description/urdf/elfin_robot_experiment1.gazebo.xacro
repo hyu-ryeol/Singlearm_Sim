@@ -17,7 +17,7 @@
   <gazebo>
     <plugin name="ft_sensor" filename="libgazebo_ros_ft_sensor.so">
     <updateRate>800</updateRate>
-    <topicName>singlearm/ft_sensor_topic</topicName>
+    <topicName>ft_sensor_topic</topicName>
     <jointName>ft_sensor_joint</jointName>
     </plugin>
   </gazebo> 

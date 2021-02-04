@@ -1,5 +1,5 @@
 
-#include <control_msgs/JointControllerState.h>
+//#include <control_msgs/JointControllerState.h>
 #include <controller_interface/controller.h>
 #include <hardware_interface/joint_command_interface.h>
 #include <realtime_tools/realtime_buffer.h>
@@ -9,20 +9,20 @@
 #include <std_msgs/Float64MultiArray.h>
 #include <angles/angles.h>
 #include <geometry_msgs/WrenchStamped.h>
-#include "singlearm_controller/ControllerJointState.h"
+//#include "singlearm_controller/ControllerJointState.h"
 #include "singlearm_controller/ControllerMatlabState.h"
-#include <Eigen/Dense>
+//#include <Eigen/Dense>
 #include <urdf/model.h>
 
 #include <kdl/tree.hpp>
-#include <kdl/kdl.hpp>
+//#include <kdl/kdl.hpp>
 #include <kdl/chain.hpp>
 #include <kdl/chaindynparam.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainiksolvervel_pinv.hpp>
-#include <kdl/chainiksolverpos_nr_jl.hpp>
+//#include <kdl/chainiksolverpos_nr_jl.hpp>
 #include <kdl_parser/kdl_parser.hpp>
-#include <tf_conversions/tf_kdl.h>
+//#include <tf_conversions/tf_kdl.h>
 
 #include <boost/scoped_ptr.hpp>
 
@@ -218,17 +218,22 @@ public:
     G_mat.resize(kdl_chain_.getNrOfJoints());
 
     // publisher
-    controller_state_pub_.reset(new realtime_tools::RealtimePublisher<singlearm_controller::ControllerMatlabState>(n, "state", 1));
+    controller_state_pub_.reset(new realtime_tools::RealtimePublisher<singlearm_controller::ControllerMatlabState>(n, "state", 10));
     controller_state_pub_->msg_.header.stamp = ros::Time::now();
-    for(size_t i=0; i<6*(n_joints_-1)+4; i++)
+    for(size_t i=0; i<(n_joints_-1); i++)
     {
-      controller_state_pub_->msg_.data.push_back(0.0);
+        controller_state_pub_->msg_.e.push_back(0.0);
+        controller_state_pub_->msg_.edot.push_back(0.0);
+        controller_state_pub_->msg_.torque.push_back(0.0);
+        controller_state_pub_->msg_.Kp.push_back(0.0);
+        controller_state_pub_->msg_.Kpdot.push_back(0.0);
+        controller_state_pub_->msg_.Kd.push_back(0.0);
     }
 
     // subsriber
     commands_buffer_.writeFromNonRT(std::vector<double>(n_joints_, 0.0));
     sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command",1, &VariableImpedanceController::commandCB,this);
-    sub_forcetorque_sensor_ = n.subscribe<geometry_msgs::WrenchStamped>("/singlearm/singlearm/ft_sensor_topic", 1, &VariableImpedanceController::updateFTsensor, this);
+    sub_forcetorque_sensor_ = n.subscribe<geometry_msgs::WrenchStamped>("/singlearm/ft_sensor_topic", 1, &VariableImpedanceController::updateFTsensor, this);
 
     return true;
   }
@@ -512,7 +517,7 @@ public:
     dq_end_.data = dq_.data;
   }
 
-  double trajectory_generator_pos(double dStart, double dEnd, double dDuration)
+  double trajectory_generator_pos(double dStart, double dEnd, double dDuration) const
   {
     double dA0 = dStart;
     double dA3 = (20.0*dEnd - 20.0*dStart) / (2.0*dDuration*dDuration*dDuration);
@@ -522,7 +527,7 @@ public:
     return dA0 + dA3*time_*time_*time_ + dA4*time_*time_*time_*time_ + dA5*time_*time_*time_*time_*time_;
   }
 
-  double trajectory_generator_vel(double dStart, double dEnd, double dDuration)
+  double trajectory_generator_vel(double dStart, double dEnd, double dDuration) const
   {
     double dA0 = dStart;
     double dA3 = (20.0*dEnd - 20.0*dStart) / (2.0*dDuration*dDuration*dDuration);
@@ -532,7 +537,7 @@ public:
     return 3.0*dA3*time_*time_ + 4.0*dA4*time_*time_*time_ + 5.0*dA5*time_*time_*time_*time_;
   }
 
-  double trajectory_generator_acc(double dStart, double dEnd, double dDuration)
+  double trajectory_generator_acc(double dStart, double dEnd, double dDuration) const
   {
     double dA0 = dStart;
     double dA3 = (20.0*dEnd - 20.0*dStart) / (2.0*dDuration*dDuration*dDuration);
@@ -593,20 +598,20 @@ public:
     {
       if (controller_state_pub_->trylock())
       {
-        controller_state_pub_->msg_.header.stamp = t;
+        controller_state_pub_->msg_.header.stamp = ros::Time::now();
         for(int i=0; i<(n_joints_-1); i++)
         {
-          controller_state_pub_->msg_.data[6*i] = e_.data(i);
-          controller_state_pub_->msg_.data[6*i+1] = e_dot_.data(i);
-          controller_state_pub_->msg_.data[6*i+2] = tau_cmd_.data(i);
-          controller_state_pub_->msg_.data[6*i+3] = Kp_(i);
-          controller_state_pub_->msg_.data[6*i+4] = Kp_dot_(i);
-          controller_state_pub_->msg_.data[6*i+5] = d_.data(i);
+          controller_state_pub_->msg_.e[i] = e_.data(i);
+          controller_state_pub_->msg_.edot[i] = e_dot_.data(i);
+          controller_state_pub_->msg_.torque[i] = tau_cmd_.data(i);
+          controller_state_pub_->msg_.Kp[i] = Kp_(i);
+          controller_state_pub_->msg_.Kpdot[i] = Kp_dot_(i);
+          //controller_state_pub_->msg_.data[6*i+5] = d_.data(i);
         }
-        controller_state_pub_->msg_.data[36] = total_time_;
-        controller_state_pub_->msg_.data[37] = lyapunov_;
-        controller_state_pub_->msg_.data[38] = lyapunov_dot[1];
-        controller_state_pub_->msg_.data[39] = SufficientCondition_;
+        controller_state_pub_->msg_.time = total_time_;
+        controller_state_pub_->msg_.lyapunov = lyapunov_;
+        controller_state_pub_->msg_.lyapunov_dot = lyapunov_dot[1];
+        controller_state_pub_->msg_.SufficientCondition = SufficientCondition_;
         controller_state_pub_->unlockAndPublish();
       }
       loop_count_=0;

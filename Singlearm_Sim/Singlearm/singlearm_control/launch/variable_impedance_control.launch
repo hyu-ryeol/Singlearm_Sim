@@ -9,4 +9,55 @@
         respawn="false" output="screen">
     <remap from="/joint_states" to="/singlearm/joint_states"/>
   </node>
+<!--
+  <node name="joint_states_position"
+        pkg="rqt_plot"
+        type="rqt_plot"
+        args="
+        /singlearm/joint_states/position[0]
+        /singlearm/joint_states/position[1]
+        /singlearm/joint_states/position[2]
+        /singlearm/joint_states/position[3]
+        /singlearm/joint_states/position[4]
+        /singlearm/joint_states/position[5]"
+  />
+  -->
+<!--
+  <node name="joint_states_velocity"
+        pkg="rqt_plot"
+        type="rqt_plot"
+        args="
+        /singlearm/joint_states/velocity[0]
+        /singlearm/joint_states/velocity[1]
+        /singlearm/joint_states/velocity[2]
+        /singlearm/joint_states/velocity[3]
+        /singlearm/joint_states/velocity[4]
+        /singlearm/joint_states/velocity[5]"
+  />
+
+
+  <node name="position_error"
+        pkg="rqt_plot"
+        type="rqt_plot"
+        args="
+        /singlearm/variable_impedance_controller/state/e[0]
+        /singlearm/variable_impedance_controller/state/e[1]
+        /singlearm/variable_impedance_controller/state/e[2]
+        /singlearm/variable_impedance_controller/state/e[3]
+        /singlearm/variable_impedance_controller/state/e[4]
+        /singlearm/variable_impedance_controller/state/e[5]"
+  />
+-->
+  <node name="velocity_error"
+        pkg="rqt_plot"
+        type="rqt_plot"
+        args="
+        /singlearm/variable_impedance_controller/state/edot[0]
+        /singlearm/variable_impedance_controller/state/edot[1]
+        /singlearm/variable_impedance_controller/state/edot[2]
+        /singlearm/variable_impedance_controller/state/edot[3]
+        /singlearm/variable_impedance_controller/state/edot[4]
+        /singlearm/variable_impedance_controller/state/edot[5]"
+  />
+
 </launch>
