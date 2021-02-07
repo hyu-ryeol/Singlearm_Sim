@@ -1,0 +1,6 @@
+<launch>
+  <include file="$(find singlearm_gazebo)/launch/elfin3_experiment2_world.launch"/>
+
+  <include file="$(find singlearm_control)/launch/variable_impedance_control_dob.launch"/>
+</launch>
+

@@ -15,4 +15,12 @@
             Variable Impedance Controller
         </description>
     </class>
+
+    <class name="singlearm_controller/VariableImpedanceControllerDOB"
+           type="singlearm_controller::VariableImpedanceControllerDOB"
+           base_class_type="controller_interface::ControllerBase">
+        <description>
+            Variable Impedance Controller with DOB
+        </description>
+    </class>
 </library>

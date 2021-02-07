@@ -1,0 +1,41 @@
+singlearm:
+    joint_state_controller:
+      type: joint_state_controller/JointStateController
+      publish_rate: 1000
+    
+    variable_impedance_controller_dob:
+      type: singlearm_controller/VariableImpedanceControllerDOB
+      joints:
+        - elfin_joint1
+        - elfin_joint2
+        - elfin_joint3
+        - elfin_joint4
+        - elfin_joint5
+        - elfin_joint6
+        - ft_sensor_joint
+
+      root_link: elfin_base_link
+      tip_link: elfin_tool_ball
+      
+      joint1:
+        tdc: {p: 80.0, d: 0.8}
+      joint2: 
+        tdc: {p: 80.0, d: 0.8}
+      joint3: 
+        tdc: {p: 80.0, d: 0.8}
+      joint4: 
+        tdc: {p: 80.0, d: 0.8}
+      joint5: 
+        tdc: {p: 80.0, d: 0.8}
+      joint6: 
+        tdc: {p: 80.0, d: 0.8}
+      joint7:
+        tdc: {p: 0.0, d: 0.0}
+
+      aic: {alpha: 0.75, epsilon: 1}
+
+      # mode = 0 -> No Filter, Fd(fixed)
+      # mode = 1 -> Filter, Fd(fixed)
+      # mode = 2 -> Filter, Fd(sin)
+
+      mode: 1

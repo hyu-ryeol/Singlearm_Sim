@@ -26,6 +26,13 @@ find_package(Eigen3 3.0 REQUIRED NO_MODULES)
 
 find_package(OpenMP)
 
+#include(ExternalProject)
+#ExternalProject_Add(${PROJECT_NAME}
+#        GIT_REPOSITORY git://github.com/headmyshoulder/odeint-v2
+#        UPDATE_COMMAND ""
+#        PATCH_COMMAND ""
+#        )
+
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
@@ -129,18 +136,10 @@ include_directories(
         ${Boost_INCLUDE_DIR}
 )
 
+file(GLOB TARGET_SRC "include/*.cpp" "src/*.cpp")
+
 ## Declare a C++ library
- add_library(${PROJECT_NAME}
-         src/computedtorque_control_clik.cpp
-         src/variable_impedance_controller.cpp
-         include/Controller.cpp
-         include/LieOperator.cpp
-         include/LieDynamics.cpp
-         include/PoEKinematics.cpp
-         include/PropertyDefinition.cpp
-         include/SerialManipulator.cpp
-         include/Trajectory.cpp
-         )
+ add_library(${PROJECT_NAME} ${TARGET_SRC})
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
