@@ -48,7 +48,11 @@ PoEKinematics::~PoEKinematics()
 
 void PoEKinematics::UpdateKinematicInfo( Vector3d _w, Vector3d _p, Vector3d _l, int _link_num )
 {
-	M[_link_num] = GetM(_l);
+	if(_link_num == 0)
+	{
+		M[_link_num] = GetM(_p);
+	}
+	M[_link_num+1] = GetM(_l);
 
 	v_se3[_link_num] = GetTwist(_w, GetV(_w, _p));
 
@@ -57,7 +61,7 @@ void PoEKinematics::UpdateKinematicInfo( Vector3d _w, Vector3d _p, Vector3d _l, 
 
 Vector3d PoEKinematics::GetV( const Vector3d &_w, const Vector3d &_p )
 {
-	return -SkewMatrix(_w)*_p;
+	return (-SkewMatrix(_w))*_p;
 }
 
 SE3 PoEKinematics::GetM( const Vector3d &_link )
@@ -69,13 +73,13 @@ SE3 PoEKinematics::GetM( const Vector3d &_link )
 
 se3 PoEKinematics::GetTwist( const Vector3d &_w, const Vector3d &_v )
 {
-	se3_Tmp.segment(0,3) = _w;
-	se3_Tmp.segment(3,3) = _v;
+	se3_Tmp.head(3) = _w;
+	se3_Tmp.tail(3) = _v;
 
 	return se3_Tmp;
 }
 
-void PoEKinematics::HTransMatrix( const VectorXd &_q )
+void PoEKinematics::HTransMatrix( const double *_q )
 {
 	int TCounter;
 
@@ -100,7 +104,7 @@ void PoEKinematics::HTransMatrix( const VectorXd &_q )
 				TCounter++;
 
 				T[0][j+1].setZero();
-				T[0][j+1].noalias() += SE3_Tmp*M[j];
+				T[0][j+1].noalias() += SE3_Tmp*M[j+1];
 			}
 		}
 
@@ -117,7 +121,7 @@ void PoEKinematics::HTransMatrix( const VectorXd &_q )
 	return;
 }
 
-void PoEKinematics::PrepareJacobian( const VectorXd *_q )
+void PoEKinematics::PrepareJacobian( const double *_q )
 {
 	HTransMatrix(_q);
 	SpaceJacobian();
@@ -169,6 +173,8 @@ void PoEKinematics::AnalyticJacobian( void )
 	Mat_Tmp.resize(6*this->m_NumChain, 6*this->m_NumChain);
 	Mat_Tmp.setZero();
 
+    mAnalyticJacobian.setZero(6*m_NumChain, m_DoF);
+
 	for(int i=0; i < this->m_NumChain; i++)
 	{
 		LogSO3(T[0][JointEndNum[i]].block(0,0,3,3), Omega, Theta);
@@ -178,37 +184,32 @@ void PoEKinematics::AnalyticJacobian( void )
 		}
 		else
 		{
-			r = Omega*Theta;
+			//r = Omega*Theta;
 			Mat_Tmp.block(6*i,6*i,3,3) += Matrix3d::Identity();
-			Mat_Tmp.block(6*i,6*i,3,3) += 1/2*LieOperator::SkewMatrix(r);
-			Mat_Tmp.block(6*i,6*i,3,3) += ((1/pow(Theta,2) - (1-cos(Theta)/(2*Theta*sin(Theta))))*LieOperator::SkewMatrixSquare(r));
+			//Mat_Tmp.block(6*i,6*i,3,3) += 1/2*LieOperator::SkewMatrix(r);
+			//Mat_Tmp.block(6*i,6*i,3,3) += ((1/pow(Theta,2) - (1-cos(Theta)/(2*Theta*sin(Theta))))*LieOperator::SkewMatrixSquare(r));
 		}
+
 		Mat_Tmp.block((6*i+3),(6*i+3),3,3) = T[0][JointEndNum[i]].block(0,0,3,3);
+
+		mAnalyticJacobian.block(6*i, 0, 3, m_DoF) += mSpaceJacobian.block(6*i, 0, 3, m_DoF);
+		mAnalyticJacobian.block(6*i+3, 0, 3, m_DoF) = T[0][JointEndNum[i]].block(0,0,3,3)*mBodyJacobian.block(6*i+3, 0, 3, m_DoF);
 	}
 
-	mAnalyticJacobian.setZero();
-	mAnalyticJacobian.noalias() += Mat_Tmp*mBodyJacobian;
+	//mAnalyticJacobian.setZero();
+	//mAnalyticJacobian.noalias() += Mat_Tmp*mBodyJacobian;
 	return;
-}
-
-void PoEKinematics::GetpInvJacobianWOOrientation(Eigen::MatrixXd & _pInvJacobian)
-{
-    MatrixXd posJacobian(3*m_NumChain, m_DoF);
-    for(int i=0; i<m_NumChain; i++)
-    {
-        //posJacobian(0, 0, )
-    }
 }
 
 void PoEKinematics::GetpinvJacobian( MatrixXd &_pinvJacobian )
 {
-	_pinvJacobian = mAnalyticJacobian.completeOrthogonalDecomposition().pseudoInverse();
+	//_pinvJacobian = mAnalyticJacobian.completeOrthogonalDecomposition().pseudoInverse();
 
-	/*
+
 	Eigen::BDCSVD<MatrixXd> svd(mAnalyticJacobian, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	svd.setThreshold(1e-5);
 	_pinvJacobian = svd.matrixV() * svd.singularValues().cwiseInverse().asDiagonal() * svd.matrixU().transpose();
-	*/
+
 	return;
 }
 
@@ -249,6 +250,11 @@ void PoEKinematics::GetManipulability( double *_TaskEigen, double *_OrientEigen 
 	return;
 }
 
+double PoEKinematics::GetManipulabilityMeasure(void)
+{
+    return sqrt((mAnalyticJacobian*mAnalyticJacobian.transpose()).determinant());
+}
+
 void PoEKinematics::GetTaskVelocity( double *_qdot, VectorXd *_TaskVelocity, int &_size )
 {
 	_size = this->m_NumChain;
@@ -280,8 +286,7 @@ void PoEKinematics::GetForwardKinematics( Vector3d *_Position, Vector3d *_Orient
 
 SE3 PoEKinematics::GetForwardKinematicsSE3( const int &_EndPosition ) const
 {
-	//return T[0][JointEndNum[_EndPosition]];
-    return T[0][_EndPosition];
+	return T[0][JointEndNum[_EndPosition]];
 }
 
 void PoEKinematics::GetAngleAxis( Vector3d *_Axis, double *_Angle, int &_NumChain )

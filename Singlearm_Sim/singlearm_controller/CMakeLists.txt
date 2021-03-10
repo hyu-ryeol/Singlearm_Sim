@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.9)
 project(singlearm_controller)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++14)
+add_compile_options(-std=c++14 -fPIC)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -22,9 +22,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
-find_package(Eigen3 3.0 REQUIRED NO_MODULES)
 
-find_package(OpenMP)
 
 #include(ExternalProject)
 #ExternalProject_Add(${PROJECT_NAME}
@@ -124,6 +122,9 @@ catkin_package(
   CATKIN_DEPENDS angles control_msgs controller_interface kdl_parser dynamic_reconfigure realtime_tools urdf gazebo_ros
 )
 
+set(CTRL_SINGLE_HEADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Control_single)
+set(KDL_SINGLE_HEADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/KDL_single)
+
 ###########
 ## Build ##
 ###########
@@ -134,12 +135,17 @@ include_directories(
         include
         ${catkin_INCLUDE_DIRS}
         ${Boost_INCLUDE_DIR}
+        #${CTRL_SINGLE_HEADERS_DIR}
+        #${KDL_SINGLE_HEADERS_DIR}
 )
 
-file(GLOB TARGET_SRC "include/*.cpp" "src/*.cpp")
+#add_subdirectory(Control_single)
+#add_subdirectory(KDL_single)
+
+file(GLOB TARGET_SRC "src/*.cpp")
 
 ## Declare a C++ library
- add_library(${PROJECT_NAME} ${TARGET_SRC})
+add_library(${PROJECT_NAME} ${TARGET_SRC})
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -162,18 +168,10 @@ add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
- target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES})
-if(NOT TARGET OpenMP::OpenMP_CXX)
+target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES}
+        #sub::CTRL_single sub::KDL_single
+        )
 
- find_package(Threads REQUIRED)
- add_library(OpenMP::OpenMP_CXX IMPORTED INTERFACE)
- set_property(TARGET OpenMP::OpenMP_CXX
-         PROPERTY INTERFACE_COMPILE_OPTIONS ${OpenMP_CXX_FLAGS})
- set_property(TARGET OpenMP::OpenMP_CXX
-         PROPERTY INTERFACE_LINK_LIBRARIES ${OpenMP_CXX_FLAGS} Threads::Threads)
-
-endif()
-target_link_libraries(${PROJECT_NAME} PUBLIC OpenMP::OpenMP_CXX)
 #############
 ## Install ##
 #############

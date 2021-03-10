@@ -26,7 +26,7 @@
 
 #include <boost/scoped_ptr.hpp>
 
-#include <odeint-v2/include/boost/numeric/odeint.hpp>
+
 
 #define PI 3.141592
 #define D2R PI/180.0
@@ -35,9 +35,6 @@
 #define SaveDataMax 7
 
 using namespace std;
-using namespace boost::numeric::odeint;
-
-typedef boost::array<double, JointMax> state_type;
 
 namespace singlearm_controller{
 
@@ -361,11 +358,6 @@ public:
     time_ = time_ + dt_;
   }
 
-  void update_dob(const state_type &x, state_type &dxdt, double t)
-  {
-    
-  }
-
   void stopping(const ros::Time& time) override
   {
 
@@ -654,7 +646,8 @@ public:
         printf("tau: %0.3f,  ", tau_cmd_.data(i));
         printf("\n");
       }
-      printf("sensor_ft >> x:%0.3f, y:%0.3f, z:%0.3f, u:%0.3f, v:%0.3f, w:%0.3f\n\n",f_cur_.force.x(), f_cur_.force.y(), f_cur_.force.z(), f_cur_.torque.x(), f_cur_.torque.y(), f_cur_.torque.z() );
+      printf("sensor_ft >> x:%0.3f, y:%0.3f, z:%0.3f, u:%0.3f, v:%0.3f, w:%0.3f\n\n",
+             f_cur_.force.x(), f_cur_.force.y(), f_cur_.force.z(), f_cur_.torque.x(), f_cur_.torque.y(), f_cur_.torque.z() );
       printf("Check Stability Factors:\n");
       printf("Lyapunov:%0.3lf, Lyapunov_dot:%0.3lf, %0.3lf  ", lyapunov_, lyapunov_dot[0], lyapunov_dot[1]);
       printf("SufficientCond:%0.3lf\n", SufficientCondition_);

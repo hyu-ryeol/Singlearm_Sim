@@ -55,10 +55,7 @@ Liedynamics::Liedynamics( const MatrixXi &_ChainMatrix, HYUMotionKinematics::PoE
 	this->VdotBase.conservativeResize(6*this->m_DoF);
 
 	grav.resize(6);
-	grav.setZero();
 	grav << 0, 0, 0, 0, 0, 9.8;
-
-	Eigen::initParallel();
 }
 
 Liedynamics::~Liedynamics()
@@ -69,7 +66,8 @@ Liedynamics::~Liedynamics()
 void Liedynamics::UpdateDynamicInfo( Matrix3d _Inertia, double _Mass, Vector3d _CoM, int _LinkNum )
 {
 	GeneralizedInertia(_Inertia, _Mass, this->GIner[_LinkNum]);
-	this->A[_LinkNum] = AdjointMatrix(inverse_SE3(pCoM->GetMMat(_LinkNum)))*pCoM->GetTwist(_LinkNum);
+	this->A[_LinkNum] = AdjointMatrix(inverse_SE3(pCoM->GetMMat(_LinkNum+1)))*pCoM->GetTwist(_LinkNum);
+	//this->GIner[_LinkNum] = AdjointMatrix(inverse_SE3(pPoEKinematics->GetM(_CoM))*pPoEKinematics->GetMMat(_LinkNum+1)).transpose()*GIner[_LinkNum]*AdjointMatrix(inverse_SE3(pPoEKinematics->GetM(_CoM))*pPoEKinematics->GetMMat(_LinkNum+1));
 }
 
 void Liedynamics::GeneralizedInertia(const Matrix3d &_Inertia, const double &_Mass, Matrix6d &GIner)
@@ -102,7 +100,7 @@ void Liedynamics::Gamma_Link( void )
 	return;
 }
 
-void Liedynamics::L_link( )
+void Liedynamics::L_link( void )
 {
 	this->L_mat.setIdentity();
 	for(int k=0; k < this->m_NumChain; k++)
@@ -122,6 +120,8 @@ void Liedynamics::L_link( )
 			}
 		}
 	}
+
+	return;
 }
 
 void Liedynamics::A_Link( void )
@@ -162,11 +162,11 @@ void Liedynamics::ad_V_Link( VectorXd _qdot )
 void Liedynamics::Vdot_base( void )
 {
 	VdotBase.setZero();
-	this->VdotBase.segment(0, 6).noalias() += LieOperator::AdjointMatrix(LieOperator::inverse_SE3(pCoM->GetTMat(0, 1)))*grav;
+	this->VdotBase.head(6).noalias() += LieOperator::AdjointMatrix(LieOperator::inverse_SE3(pCoM->GetTMat(0, 1)))*grav;
 	return;
 }
 
-void Liedynamics::PrepareDynamics( const VectorXd &_q, const VectorXd &_qdot )
+void Liedynamics::PrepareDynamics( const double *_q, const double *_qdot )
 {
 	if(isFirstRun == 0)
 	{
@@ -189,19 +189,20 @@ void Liedynamics::PrepareDynamics( const VectorXd &_q, const VectorXd &_qdot )
 	//ad_V_Link(qdot);
 }
 
-void Liedynamics::C_Matrix( MatrixXd &_C )
+
+void Liedynamics::C_Matrix( MatrixXd &_Cmat )
 {
-	_C.resize(this->m_DoF, this->m_DoF);
-	_C.setZero();
-	_C = -LA_mat.transpose()*(Iner_mat*L_mat*ad_Aqd*Gamma_mat + ad_V.transpose()*Iner_mat)*LA_mat;
+	_Cmat.resize(this->m_DoF, this->m_DoF);
+	_Cmat.setZero();
+	_Cmat = -LA_mat.transpose()*(Iner_mat*L_mat*ad_Aqd*Gamma_mat + ad_V.transpose()*Iner_mat)*LA_mat;
 	return;
 }
 
 void Liedynamics::G_Matrix( VectorXd &_G )
 {
-	_G.resize(this->m_DoF);
-	_G.setZero();
-	_G.noalias() += LA_mat.transpose()*Iner_mat*L_mat*VdotBase;
+    _G.resize(this->m_DoF);
+    _G.setZero();
+    _G.noalias() += LA_mat.transpose()*(Iner_mat*(L_mat*VdotBase));
 	return;
 }
 
@@ -214,7 +215,7 @@ void Liedynamics::MG_Mat_Joint( MatrixXd &_M, VectorXd&_G )
 
 	mM_Tmp.resize(this->m_DoF, 6*this->m_DoF);
 	mM_Tmp.setZero();
-	mM_Tmp.noalias() += LA_mat.transpose()*Iner_mat*L_mat;
+	mM_Tmp.noalias() += (LA_mat.transpose()*Iner_mat)*L_mat;
 
 	_M.noalias() += mM_Tmp*A_mat;
 	_G.noalias() += mM_Tmp*VdotBase;

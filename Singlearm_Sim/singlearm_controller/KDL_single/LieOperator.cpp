@@ -19,7 +19,6 @@ LieOperator::~LieOperator() {
 
 SE3 LieOperator::inverse_SE3( const SE3 &_SE3 )
 {
-    SE3Res.setZero();
 	SE3Res << _SE3.block<3, 3>(0, 0).transpose(), -_SE3.block<3, 3>(0, 0).transpose()*_SE3.block<3, 1>(0, 3),
 			0, 0, 0, 1;
 	return SE3Res;
@@ -189,7 +188,7 @@ Matrix3d LieOperator::GinvmapMatrix( const Vector3d &_omega, const double &_thet
 
 
 
-SE3 LieOperator::SE3Matrix( const se3 &_Twist, const VectorXd &_q )
+SE3 LieOperator::SE3Matrix( const se3 &_Twist, const double &_q )
 {
 	Matrix3d i = Matrix3d::Identity();
 	Mat4dRes.setZero();

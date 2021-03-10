@@ -26,7 +26,7 @@
   <joint name="elfin_base_joint" type="fixed">
     <origin
       xyz="0 0 0"
-      rpy="0 0 ${PI/2}" />
+      rpy="${0} 0 ${PI/2}" />
     <parent
       link="elfin_base_link" />
     <child
@@ -55,7 +55,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_base.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_base.STL" />
       </geometry>
       <material
         name="metal_white"/>
@@ -66,7 +66,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_base.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_base.STL" />
       </geometry>
     </collision>
   </link>
@@ -92,7 +92,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_link1.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_link1.STL" />
       </geometry>
       <material
         name="metal"/>
@@ -103,7 +103,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_link1.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_link1.STL" />
       </geometry>
     </collision>
   </link>
@@ -150,7 +150,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_link2.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_link2.STL" />
       </geometry>
       <material
         name="metal_grey"/>
@@ -161,7 +161,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_link2.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_link2.STL" />
       </geometry>
     </collision>
   </link>
@@ -208,7 +208,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_link3.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_link3.STL" />
       </geometry>
       <material
         name="metal"/>
@@ -219,7 +219,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_link3.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_link3.STL" />
       </geometry>
     </collision>
   </link>
@@ -266,7 +266,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_link4.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_link4.STL" />
       </geometry>
       <material
         name="metal_grey"/>
@@ -277,7 +277,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_link4.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_link4.STL" />
       </geometry>
     </collision>
   </link>
@@ -324,7 +324,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_link5.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_link5.STL" />
       </geometry>
       <material
         name="metal"/>
@@ -335,7 +335,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_link5.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_link5.STL" />
       </geometry>
     </collision>
   </link>
@@ -382,7 +382,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_link6.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_link6.STL" />
       </geometry>
       <material
         name="metal_white"/>
@@ -393,7 +393,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://elfin_description/meshes/elfin3/elfin_link6.STL" />
+          filename="package://singlearm_description/meshes/elfin3/elfin_link6.STL" />
       </geometry>
     </collision>
   </link>
